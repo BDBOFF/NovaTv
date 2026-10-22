@@ -48,7 +48,7 @@ private enum class Section(val label: String) {
     PLAYBACK("Lecture"),
     METADATA("Affiches & fiches"),
     ADVANCED("Avancé"),
-    ABOUT("À propos"),
+    ABOUT("Mise à jour & infos"),
 }
 
 @Composable
@@ -78,7 +78,7 @@ fun SettingsScreen(vm: AppViewModel) {
                 Section.PLAYBACK -> PlaybackSection(vm)
                 Section.METADATA -> MetadataSection(vm)
                 Section.ADVANCED -> AdvancedSection(vm)
-                Section.ABOUT -> AboutSection()
+                Section.ABOUT -> AboutSection(vm)
             }
         }
     }
@@ -268,9 +268,25 @@ private fun AdvancedSection(vm: AppViewModel) {
 }
 
 @Composable
-private fun AboutSection() {
+private fun AboutSection(vm: AppViewModel) {
     InfoRow("Application", "SamothTV")
     InfoRow("Version", BuildConfig.VERSION_NAME)
+    val up = vm.update
+    val p = vm.updateProgress
+    InfoRow(
+        "Mise à jour",
+        when {
+            p != null -> "Téléchargement ${(p * 100).toInt()} %"
+            up != null -> "Version 1.${up.version} disponible"
+            else -> "Vous avez la dernière version"
+        },
+        if (up != null) Nova.Accent else Nova.Green,
+    )
+    vm.updateMessage?.let { Text(it, style = Type.Small, color = Nova.Gold) }
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (up != null) NovaButton("Installer la mise à jour", onClick = { vm.installUpdate() }, primary = true)
+        NovaButton("Vérifier", onClick = { vm.checkUpdate() })
+    }
     Text(
         "SamothTV est un lecteur : il ne fournit aucune chaîne ni aucun contenu. Utilisez uniquement des abonnements " +
             "légaux auxquels vous avez droit. Données de films et séries fournies par TMDB ; " +

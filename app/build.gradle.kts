@@ -6,6 +6,8 @@ plugins {
 }
 
 val tmdbKey: String = (project.findProperty("TMDB_API_KEY") as String?) ?: ""
+// Numéro de version = numéro de compilation GitHub (sert à la mise à jour intégrée)
+val buildNumber: Int = (project.findProperty("BUILD_NUMBER") as String?)?.toIntOrNull() ?: 1
 
 android {
     namespace = "com.nova.tv"
@@ -15,8 +17,8 @@ android {
         applicationId = "com.nova.tv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.1.1"
+        versionCode = buildNumber
+        versionName = "1.$buildNumber"
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbKey\"")
     }
 

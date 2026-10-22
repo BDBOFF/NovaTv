@@ -123,6 +123,10 @@ private fun TopBar(vm: AppViewModel, requesters: Map<MainTab, FocusRequester>) {
             TabItem(vm, MainTab.SEARCH, requesters.getValue(MainTab.SEARCH), null, Icons.Filled.Search)
             TabItem(vm, MainTab.SETTINGS, requesters.getValue(MainTab.SETTINGS), null, Icons.Filled.Settings)
         }
+        if (vm.update != null) {
+            Spacer(Modifier.width(10.dp))
+            UpdatePill(vm)
+        }
         Spacer(Modifier.width(18.dp))
         Text(formatClock(now), style = Type.H3, color = Nova.Muted)
     }
@@ -166,6 +170,33 @@ private fun TabItem(vm: AppViewModel, tab: MainTab, requester: FocusRequester, l
                         .background(Nova.AccentBrush)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun UpdatePill(vm: AppViewModel) {
+    val p = vm.updateProgress
+    FocusBox(
+        onClick = { vm.installUpdate() },
+        shape = RoundedCornerShape(50),
+        focusedScale = 1.05f,
+        borderWidth = 0.dp,
+        glow = false,
+        modifier = Modifier.height(32.dp),
+    ) { focused ->
+        Box(
+            Modifier
+                .background(if (focused) Color.White else Nova.Accent)
+                .padding(horizontal = 14.dp)
+                .height(32.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                if (p != null) "Téléchargement ${(p * 100).toInt()} %" else "Mise à jour disponible",
+                style = Type.Small,
+                color = if (focused) Color.Black else Color.White,
+            )
         }
     }
 }

@@ -29,6 +29,8 @@ import com.nova.tv.data.SeriesContent
 import com.nova.tv.data.Storage
 import com.nova.tv.data.Titles
 import com.nova.tv.data.Tmdb
+import com.nova.tv.data.UpdateInfo
+import com.nova.tv.data.Updater
 import com.nova.tv.data.TmdbItem
 import com.nova.tv.data.XtreamClient
 import com.nova.tv.data.normalizeServer
@@ -128,6 +130,43 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // ============================================================= Mise à jour
+
+    var update by mutableStateOf<UpdateInfo?>(null)
+        private set
+    var updateProgress by mutableStateOf<Float?>(null)
+        private set
+    var updateMessage by mutableStateOf<String?>(null)
+        private set
+    private var downloaded: java.io.File? = null
+
+    fun checkUpdate() {
+        viewModelScope.launch { update = Updater.check() }
+    }
+
+    fun installUpdate() {
+        val info = update ?: return
+        val ctx = getApplication<Application>()
+        downloaded?.takeIf { it.exists() }?.let { f ->
+            if (!Updater.install(ctx, f)) updateMessage = "Autorisez SamothTV à installer des applications, puis réessayez."
+            return
+        }
+        if (updateProgress != null) return
+        viewModelScope.launch {
+            updateMessage = null
+            updateProgress = 0f
+            try {
+                val f = Updater.download(ctx, info) { p -> updateProgress = p }
+                downloaded = f
+                if (!Updater.install(ctx, f)) updateMessage = "Autorisez SamothTV à installer des applications, puis réessayez."
+            } catch (e: Exception) {
+                updateMessage = "Échec du téléchargement : ${e.message}"
+            } finally {
+                updateProgress = null
+            }
+        }
+    }
+
     // ============================================================= Navigation
 
     val route: Route get() = backStack.last()
@@ -217,6 +256,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             tab = MainTab.HOME
             replaceAll(Route.Main)
             viewModelScope.launch { loadTrending() }
+            checkUpdate()
             return null
         } catch (e: Exception) {
             val msg = when {
