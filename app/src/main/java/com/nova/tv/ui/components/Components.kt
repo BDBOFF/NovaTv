@@ -472,9 +472,9 @@ fun SeeAllCard(onClick: () -> Unit, height: Dp, width: Dp = 112.dp) {
  * lisible même quand l'affiche le chevauche légèrement.
  */
 /** Style des gros chiffres du classement (réglable dans Réglages → Lecture & affichage). */
-enum class RankStyle(val label: String) { CLASSIC("Classique"), OUTLINE("Contour"), NEON("Néon rouge") }
+enum class RankStyle(val label: String) { NEON("Néon rouge"), CLASSIC("Classique"), OUTLINE("Contour") }
 
-val LocalRankStyle = staticCompositionLocalOf { RankStyle.CLASSIC }
+val LocalRankStyle = staticCompositionLocalOf { RankStyle.NEON }
 
 @Composable
 private fun RankNumber(text: String, modifier: Modifier) {

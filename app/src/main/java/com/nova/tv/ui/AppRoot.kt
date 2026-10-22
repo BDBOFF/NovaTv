@@ -61,7 +61,7 @@ fun AppRoot(vm: AppViewModel) {
 
     CompositionLocalProvider(
         LocalFocusMemory provides vm.focus,
-        LocalRankStyle provides (runCatching { RankStyle.valueOf(vm.storage.rankStyle) }.getOrNull() ?: RankStyle.CLASSIC),
+        LocalRankStyle provides (runCatching { RankStyle.valueOf(vm.storage.rankStyle) }.getOrNull() ?: RankStyle.NEON),
     ) {
         Box(Modifier.fillMaxSize().background(Nova.Bg)) {
             val key = when (route) {
