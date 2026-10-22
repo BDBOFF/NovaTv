@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import com.nova.tv.AppViewModel
 import com.nova.tv.data.Channel
 import com.nova.tv.data.ContentType
+import com.nova.tv.player.LivePreview
 import com.nova.tv.ui.MainTab
 import com.nova.tv.ui.Nova
 import com.nova.tv.ui.Route
@@ -58,7 +59,8 @@ import com.nova.tv.ui.components.formatClock
 /** Page d'accueil de la TV Direct : grande zone d'aperçu + rangées de chaînes. */
 @Composable
 fun LiveHomeScreen(vm: AppViewModel) {
-    val rails = remember(vm.channels, vm.storage.favorites, vm.storage.history, vm.storage.showAdult) { vm.buildLiveRails() }
+    LaunchedEffect(Unit) { vm.loadMatches() }
+    val rails = remember(vm.channels, vm.storage.favorites, vm.storage.history, vm.storage.showAdult, vm.matches) { vm.buildLiveRails() }
     var focused by remember { mutableStateOf<Tile?>(null) }
     var heroFocused by remember { mutableStateOf(false) }
     val now = rememberNow(30_000)
@@ -88,7 +90,16 @@ fun LiveHomeScreen(vm: AppViewModel) {
                 )
             )
         )
-        if (ch?.logo != null) {
+        if (vm.storage.livePreview) {
+            LivePreview(
+                url = ch?.let { vm.liveUrl(it) },
+                logo = ch?.logo,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 80.dp, end = 48.dp)
+                    .size(384.dp, 216.dp),
+            )
+        } else if (ch?.logo != null) {
             NetImage(
                 ch.logo,
                 Modifier
@@ -103,7 +114,7 @@ fun LiveHomeScreen(vm: AppViewModel) {
         Column(Modifier.fillMaxSize()) {
             Spacer(Modifier.height(78.dp))
             // ------------------------------------------------ Aperçu de la chaîne
-            Column(Modifier.padding(horizontal = 48.dp).width(560.dp).height(240.dp)) {
+            Column(Modifier.padding(horizontal = 48.dp).width(470.dp).height(240.dp)) {
                 if (ch != null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Badge("EN DIRECT")
@@ -188,7 +199,7 @@ fun LiveHomeScreen(vm: AppViewModel) {
                             val list = rail.tiles.mapNotNull { it.channel }
                             RailRow(
                                 rail = rail,
-                                onTileClick = { t -> t.channel?.let { c -> vm.playChannel(c, list) } },
+                                onTileClick = { t -> if (t.kind == com.nova.tv.data.Kind.MATCH) openTile(vm, t) else t.channel?.let { c -> vm.playChannel(c, list) } },
                                 onTileFocused = { focused = it },
                                 onTileLongClick = { longPressFav(vm, context, it) },
                                 onSeeAll = rail.seeAllTarget?.let { target -> { vm.openSeeAll(target) } },

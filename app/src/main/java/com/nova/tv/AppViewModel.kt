@@ -205,9 +205,64 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // ------------------------------------------------------------- Matchs du jour
+
+    var matches by mutableStateOf<List<Tile>>(emptyList())
+        private set
+    private var matchesLoadedAt = 0L
+    private var matchesLoading = false
+
+    /** Repère les matchs du jour dans le programme des chaînes sport. */
+    fun loadMatches(force: Boolean = false) {
+        val c = client ?: return
+        val now = System.currentTimeMillis()
+        if (matchesLoading || (!force && now - matchesLoadedAt < 10 * 60 * 1000)) return
+        matchesLoading = true
+        viewModelScope.launch {
+            try {
+                val sportCats = liveCategories.filter { com.nova.tv.data.Explore.isSportCategory(it.name) }.map { it.id }.toSet()
+                val quality = mapOf("FHD" to 0, "HD" to 1, "4K" to 2, "SD" to 3, "LOW" to 4)
+                val favIds = (favorites(Kind.LIVE).map { it.id } + history(Kind.LIVE).map { it.id }).toSet()
+                val candidates = visibleChannels().filter { it.categoryId in sportCats }
+                    .groupBy { Titles.normalize(it.displayName) }
+                    .map { (_, list) -> list.minByOrNull { quality[it.quality] ?: 5 }!! }
+                    .sortedByDescending { it.id in favIds }
+                    .take(60)
+                val sem = Semaphore(5)
+                val found = coroutineScope {
+                    candidates.map { ch ->
+                        async {
+                            sem.withPermit {
+                                val progs = runCatching { c.shortEpg(ch.id, 16) }.getOrDefault(emptyList())
+                                if (progs.isNotEmpty()) epg[ch.id] = progs
+                                progs.map { ch to it }
+                            }
+                        }
+                    }.flatMap { it.await() }
+                }
+                val horizon = now + 14L * 3600 * 1000
+                val list = found
+                    .filter { (_, p) -> p.end > now && p.start < horizon && com.nova.tv.data.Explore.looksLikeMatch(p.title) }
+                    .sortedWith(compareBy<Pair<Channel, EpgProgram>> { !it.second.isNow(now) }.thenBy { it.second.start })
+                    .distinctBy { (_, p) -> Titles.normalize(p.title) + p.start }
+                    .take(30)
+                matches = list.map { (ch, p) ->
+                    Tile(
+                        key = "match_${ch.id}_${p.start}", kind = Kind.MATCH, id = ch.id, title = p.title,
+                        image = ch.logo, subtitle = ch.displayName, channel = ch, program = p,
+                    )
+                }
+                matchesLoadedAt = System.currentTimeMillis()
+            } finally {
+                matchesLoading = false
+            }
+        }
+    }
+
     /** Rangées de la page TV Direct. */
     fun buildLiveRails(): List<Rail> {
         val rails = ArrayList<Rail>()
+        if (matches.isNotEmpty()) rails += Rail("l_matches", "Matchs du jour", RailStyle.MATCH, matches)
         val fav = favorites(Kind.LIVE).mapNotNull { channelsById[it.id] }
         if (fav.isNotEmpty()) rails += Rail("l_fav", "Favoris", RailStyle.CHANNEL, fav.map { channelTile(it) }, SeeAll(MainTab.LIVE, Special.FAV))
         val recent = history(Kind.LIVE).mapNotNull { channelsById[it.id] }.take(20)
@@ -591,6 +646,163 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             trendSeries = s.await()
             nowPlaying = c.await()
         }
+        loadSagas()
+    }
+
+    // ============================================================= Sagas, genres, années
+
+    /** Incrémenté quand des données d'exploration arrivent (sert à rafraîchir les rangées). */
+    var exploreVersion by mutableIntStateOf(0)
+        private set
+    var sagas by mutableStateOf<List<com.nova.tv.data.Saga>>(emptyList())
+        private set
+    private val genreCovers = HashMap<String, String>()
+    private val genreLoading = HashSet<String>()
+    private val genreResults = HashMap<String, List<Tile>>()
+
+    private suspend fun loadSagas() {
+        val t = tmdb() ?: return
+        val file = java.io.File(getApplication<Application>().cacheDir, "sagas_v1.json")
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+        val cached: List<com.nova.tv.data.Saga>? = withContext(Dispatchers.IO) {
+            if (file.exists() && System.currentTimeMillis() - file.lastModified() < 7L * 24 * 3600 * 1000) {
+                runCatching { json.decodeFromString(kotlinx.serialization.builtins.ListSerializer(com.nova.tv.data.Saga.serializer()), file.readText()) }.getOrNull()
+            } else null
+        }
+        val all = cached ?: run {
+            val sem = Semaphore(4)
+            val found = coroutineScope {
+                com.nova.tv.data.Explore.sagaQueries.map { q ->
+                    async {
+                        sem.withPermit {
+                            runCatching { t.searchCollection(q)?.let { id -> t.collection(id) } }.getOrNull()
+                        }
+                    }
+                }.map { it.await() }
+            }.filterNotNull().distinctBy { it.id }
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    file.writeText(json.encodeToString(kotlinx.serialization.builtins.ListSerializer(com.nova.tv.data.Saga.serializer()), found))
+                }
+            }
+            found
+        }
+        sagas = all
+        exploreVersion++
+    }
+
+    /** Nombre de films d'une saga présents dans le catalogue. */
+    fun sagaAvailable(s: com.nova.tv.data.Saga): Int =
+        s.parts.count { matchMovie(it.id, it.title, it.originalTitle, it.year) != null }
+
+    fun sagaById(id: Int) = sagas.firstOrNull { it.id == id }
+
+    fun sagaTiles(s: com.nova.tv.data.Saga): List<Tile> = s.parts.map { tmdbTile(it) }
+
+    private fun sagaRail(): Rail? {
+        val list = sagas.map { it to sagaAvailable(it) }.filter { it.second >= 2 }
+            .sortedByDescending { it.second }
+        if (list.isEmpty()) return null
+        return Rail("sagas", "Sagas", RailStyle.WIDE, list.map { (sg, n) ->
+            Tile(
+                key = "saga${sg.id}", kind = Kind.SAGA, id = sg.id, title = sg.name, image = sg.backdrop ?: sg.poster,
+                subtitle = "$n film${if (n > 1) "s" else ""} sur ${sg.parts.size}",
+            )
+        })
+    }
+
+    private fun genreKey(scope: Scope, g: com.nova.tv.data.Genre) = "${scope.name}:${g.key}"
+
+    private fun genreRail(scope: Scope): Rail {
+        val genres = com.nova.tv.data.Explore.genres.filter {
+            when (scope) {
+                Scope.MOVIES -> it.movieId != null
+                Scope.SERIES -> it.tvId != null
+                Scope.ALL -> true
+            }
+        }
+        genres.forEach { ensureGenreCover(scope, it) }
+        return Rail("genres", "Explorer par genre", RailStyle.WIDE, genres.map { g ->
+            Tile(key = "genre_${g.key}", kind = Kind.GENRE, id = 0, title = g.name, image = genreCovers[genreKey(scope, g)])
+        })
+    }
+
+    private fun ensureGenreCover(scope: Scope, g: com.nova.tv.data.Genre) {
+        val key = genreKey(scope, g)
+        if (genreCovers.containsKey(key) || key in genreLoading) return
+        val t = tmdb() ?: return
+        genreLoading.add(key)
+        viewModelScope.launch {
+            val type = if (scope == Scope.SERIES || g.movieId == null) "tv" else "movie"
+            val id = if (type == "tv") g.tvId else g.movieId
+            val img = id?.let { runCatching { t.discover(type, it, 1) }.getOrNull() }
+                ?.firstOrNull { it.backdrop != null }?.backdrop
+            if (img != null) {
+                genreCovers[key] = img
+                exploreVersion++
+            }
+        }
+    }
+
+    private fun yearRail(scope: Scope): Rail? {
+        val years = HashMap<Int, MutableList<Pair<String?, Double>>>()
+        if (scope != Scope.SERIES) visibleMovies().forEach { m ->
+            m.year?.toIntOrNull()?.let { y -> years.getOrPut(y) { ArrayList() }.add(m.poster to (m.rating ?: 0.0)) }
+        }
+        if (scope != Scope.MOVIES) visibleSeries().forEach { x ->
+            x.year?.toIntOrNull()?.let { y -> years.getOrPut(y) { ArrayList() }.add(x.cover to (x.rating ?: 0.0)) }
+        }
+        val list = years.filter { it.value.size >= 5 && it.key <= currentYear() + 1 }.keys.sortedDescending().take(15)
+        if (list.isEmpty()) return null
+        return Rail("years", "Explorer par année", RailStyle.WIDE, list.map { y ->
+            val cover = years[y].orEmpty().filter { it.first != null }.maxByOrNull { it.second }?.first
+            Tile(key = "year_$y", kind = Kind.YEAR, id = y, title = "$y", image = cover, subtitle = "${years[y]?.size ?: 0} titres")
+        })
+    }
+
+    /** Tuiles d'une grille "année". */
+    fun yearTiles(scope: Scope, year: Int): List<Tile> {
+        val y = year.toString()
+        val m = if (scope != Scope.SERIES) visibleMovies().filter { it.year == y }
+            .sortedWith(compareByDescending<Movie> { it.rating ?: 0.0 }.thenByDescending { it.added }).map { movieTile(it) } else emptyList()
+        val s = if (scope != Scope.MOVIES) visibleSeries().filter { it.year == y }
+            .sortedWith(compareByDescending<Series> { it.rating ?: 0.0 }.thenByDescending { it.lastModified }).map { seriesTile(it) } else emptyList()
+        return if (scope == Scope.ALL) interleave(m, s) else m + s
+    }
+
+    /** Tuiles d'une grille "genre" : TMDB (populaires du genre) croisé avec le catalogue + genres Xtream des séries. */
+    suspend fun genreTiles(scope: Scope, genreKey: String): List<Tile> {
+        val g = com.nova.tv.data.Explore.genres.firstOrNull { it.key == genreKey } ?: return emptyList()
+        val cacheKey = genreKey(scope, g)
+        genreResults[cacheKey]?.let { return it }
+        val t = tmdb()
+        val movies = ArrayList<Tile>()
+        val series = ArrayList<Tile>()
+        if (t != null) coroutineScope {
+            val mJobs = if (scope != Scope.SERIES && g.movieId != null) (1..6).map { p ->
+                async { runCatching { t.discover("movie", g.movieId, p) }.getOrDefault(emptyList()) }
+            } else emptyList()
+            val sJobs = if (scope != Scope.MOVIES && g.tvId != null) (1..6).map { p ->
+                async { runCatching { t.discover("tv", g.tvId, p) }.getOrDefault(emptyList()) }
+            } else emptyList()
+            mJobs.flatMap { it.await() }.forEach { it2 ->
+                matchMovie(it2.id, it2.title, it2.originalTitle, it2.year)?.let { m -> movies += movieTile(m) }
+            }
+            sJobs.flatMap { it.await() }.forEach { it2 ->
+                matchSeries(it2.id, it2.title, it2.originalTitle)?.let { x -> series += seriesTile(x) }
+            }
+        }
+        if (scope != Scope.MOVIES) {
+            visibleSeries().filter { it.genre?.let { gs -> g.match.containsMatchIn(gs) } == true }
+                .sortedByDescending { it.lastModified }.take(150).forEach { series += seriesTile(it) }
+        }
+        val result = withContext(Dispatchers.Default) {
+            val m = movies.distinctBy { it.key }
+            val s = series.distinctBy { it.key }
+            if (scope == Scope.ALL) interleave(m, s) else m + s
+        }
+        genreResults[cacheKey] = result
+        return result
     }
 
     private fun currentYear() = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
@@ -723,6 +935,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val favs = favoriteTiles(scope)
         if (favs.isNotEmpty()) rails += Rail("favs", "Favoris", RailStyle.POSTER, favs)
 
+        // 5. Explorer : sagas, genres, années
+        if (scope == Scope.MOVIES) sagaRail()?.let { rails += it }
+        if (tmdb() != null || scope != Scope.MOVIES) rails += genreRail(scope)
+        if (scope != Scope.ALL) yearRail(scope)?.let { rails += it }
+
         // 5. Nouveautés
         if (wantM && vm.isNotEmpty()) {
             rails += Rail(
@@ -810,6 +1027,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             title = ch.displayName, image = ch.logo, channel = ch,
         )
     }
+
+    fun liveUrl(ch: Channel): String? = client?.liveUrl(ch, storage.liveFormat)
 
     fun playChannel(ch: Channel, list: List<Channel>) {
         val items = list.ifEmpty { listOf(ch) }.mapNotNull { liveItem(it) }

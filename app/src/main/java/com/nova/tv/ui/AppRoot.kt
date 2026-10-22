@@ -22,6 +22,8 @@ import com.nova.tv.ui.components.LocalRankStyle
 import com.nova.tv.ui.components.RankStyle
 import com.nova.tv.ui.components.LocalScreenKey
 import com.nova.tv.ui.screens.CatalogScreen
+import com.nova.tv.ui.screens.GridScreen
+import com.nova.tv.ui.screens.SagaScreen
 import com.nova.tv.ui.screens.LiveScreen
 import com.nova.tv.ui.screens.TmdbDetailScreen
 import androidx.compose.foundation.layout.padding
@@ -73,6 +75,8 @@ fun AppRoot(vm: AppViewModel) {
                 is Route.Player -> "player_${vm.backStack.size}"
                 is Route.Catalog -> "catalog_${route.type}"
                 Route.LiveGrid -> "livegrid"
+                is Route.Saga -> "saga_${route.id}"
+                is Route.Grid -> "grid_${route.mode}_${route.key}_${route.scope}"
                 is Route.TmdbDetail -> "tmdb_${route.kind}_${route.id}"
             }
             holder.SaveableStateProvider(key) {
@@ -87,6 +91,8 @@ fun AppRoot(vm: AppViewModel) {
                         Box(Modifier.fillMaxSize().padding(top = 28.dp)) { CatalogScreen(vm, route.type) }
                     }
                     is Route.TmdbDetail -> TmdbDetailScreen(vm, route.kind, route.id)
+                    is Route.Saga -> SagaScreen(vm, route.id)
+                    is Route.Grid -> GridScreen(vm, route.mode, route.key, route.scope, route.title)
                     Route.LiveGrid -> CompositionLocalProvider(LocalScreenKey provides "livegrid") {
                         Box(Modifier.fillMaxSize().padding(top = 28.dp)) { LiveScreen(vm) }
                     }

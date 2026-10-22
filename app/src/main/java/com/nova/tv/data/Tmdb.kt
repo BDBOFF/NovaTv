@@ -6,7 +6,18 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import java.net.URLEncoder
 
+@kotlinx.serialization.Serializable
+data class Saga(
+    val id: Int,
+    val name: String,
+    val overview: String?,
+    val poster: String?,
+    val backdrop: String?,
+    val parts: List<TmdbItem>,
+)
+
 /** Un titre TMDB (tendance, au cinéma…), présent ou non dans le catalogue IPTV. */
+@kotlinx.serialization.Serializable
 data class TmdbItem(
     val id: Int,
     val type: String, // "movie" ou "tv"
@@ -136,6 +147,32 @@ class Tmdb(val key: String) {
     suspend fun nowPlaying(): List<TmdbItem> = list("movie", "/movie/now_playing", "region=FR")
 
     suspend fun detailsById(type: String, id: Int): Details? = details(type, id.toString(), "", null)
+
+    /** Recherche une saga (collection TMDB) par son nom. */
+    suspend fun searchCollection(name: String): Int? {
+        val q = URLEncoder.encode(name, "UTF-8")
+        return get("/search/collection", "query=$q")?.get("results").items().firstOrNull()?.obj()?.i("id")
+    }
+
+    suspend fun collection(id: Int): Saga? {
+        val o = get("/collection/$id") ?: return null
+        val parts = o["parts"].items().mapNotNull { it.obj() }.mapNotNull { item("movie", it) }
+            .filter { it.year != null }
+            .sortedBy { it.year }
+        if (parts.size < 2) return null
+        return Saga(
+            id = id,
+            name = (o.s("name") ?: return null).removeSuffix(" - Saga").removeSuffix(" - Collection").trim(),
+            overview = o.s("overview"),
+            poster = o.s("poster_path")?.let { "${IMG}w500$it" },
+            backdrop = o.s("backdrop_path")?.let { "${IMG}w1280$it" },
+            parts = parts,
+        )
+    }
+
+    /** Titres populaires d'un genre (pour "Explorer par genre"). */
+    suspend fun discover(type: String, genreId: Int, page: Int): List<TmdbItem> =
+        list(type, "/discover/$type", "with_genres=$genreId&sort_by=popularity.desc&vote_count.gte=30&page=$page")
 
     companion object {
         private const val API = "https://api.themoviedb.org/3"

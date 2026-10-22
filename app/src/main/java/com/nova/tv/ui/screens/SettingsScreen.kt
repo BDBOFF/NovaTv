@@ -208,6 +208,11 @@ private fun PlaybackSection(vm: AppViewModel) {
         vm.storage.rankStyle,
     ) { vm.storage.rankStyle = it }
     ToggleRow(
+        "Aperçu vidéo sur la TV Direct",
+        "Lit la chaîne sélectionnée en miniature, sans le son. À désactiver si votre abonnement n'autorise qu'une connexion.",
+        vm.storage.livePreview,
+    ) { vm.storage.livePreview = !vm.storage.livePreview }
+    ToggleRow(
         "Épisode suivant automatique",
         "Enchaîne l'épisode suivant à la fin d'un épisode.",
         vm.storage.autoNext,

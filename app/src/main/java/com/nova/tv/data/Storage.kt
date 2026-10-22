@@ -67,6 +67,13 @@ class Storage(context: Context) {
             _rankStyle.value = v; prefs.edit().putString("rankStyle", v).apply()
         }
 
+    private val _livePreview = mutableStateOf(prefs.getBoolean("livePreview", true))
+    var livePreview: Boolean
+        get() = _livePreview.value
+        set(v) {
+            _livePreview.value = v; prefs.edit().putBoolean("livePreview", v).apply()
+        }
+
     private val _showAdult = mutableStateOf(prefs.getBoolean("showAdult", false))
     var showAdult: Boolean
         get() = _showAdult.value

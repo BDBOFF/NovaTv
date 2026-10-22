@@ -31,6 +31,10 @@ object Kind {
     /** Titres connus de TMDB mais absents (pour l'instant) du catalogue. */
     const val TMDB_MOVIE = "tmdb_movie"
     const val TMDB_TV = "tmdb_tv"
+    const val SAGA = "saga"
+    const val GENRE = "genre"
+    const val YEAR = "year"
+    const val MATCH = "match"
 }
 
 data class Category(val id: String, val name: String)

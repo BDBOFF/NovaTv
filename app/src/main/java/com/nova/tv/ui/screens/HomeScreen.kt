@@ -72,7 +72,32 @@ fun openTile(vm: AppViewModel, t: Tile) {
             vm.playChannel(ch, vm.channels.filter { it.categoryId == ch.categoryId })
         }
         Kind.TMDB_MOVIE, Kind.TMDB_TV -> vm.navigate(Route.TmdbDetail(t.kind, t.id))
+        Kind.SAGA -> vm.navigate(Route.Saga(t.id))
+        Kind.MATCH -> t.channel?.let { ch ->
+            val p = t.program
+            if (p == null || p.start <= System.currentTimeMillis()) {
+                vm.playChannel(ch, vm.channels.filter { it.categoryId == ch.categoryId })
+            } else {
+                android.widget.Toast.makeText(
+                    vm.getApplication<android.app.Application>(),
+                    "Début à ${com.nova.tv.ui.components.formatClock(p.start)} sur ${ch.displayName}",
+                    android.widget.Toast.LENGTH_LONG,
+                ).show()
+            }
+        }
+        // Genres et années : ouverts par openExplore (le périmètre dépend de la page)
+        else -> {}
     }
+}
+
+/** Ouvre une tuile d'exploration (genre / année) selon la page courante. */
+fun openExplore(vm: AppViewModel, t: Tile, scope: Scope): Boolean {
+    when (t.kind) {
+        Kind.GENRE -> vm.navigate(Route.Grid("genre", t.key.removePrefix("genre_"), scope, t.title))
+        Kind.YEAR -> vm.navigate(Route.Grid("year", t.id.toString(), scope, t.title))
+        else -> return false
+    }
+    return true
 }
 
 /** Appui long sur une tuile : ajout / retrait des favoris avec confirmation. */
@@ -85,7 +110,7 @@ fun BrowseScreen(vm: AppViewModel, scope: Scope) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val rails = remember(
         scope, vm.movies, vm.series, vm.channels, vm.storage.favorites, vm.storage.history,
-        vm.trendMovies, vm.trendSeries, vm.nowPlaying, vm.storage.showAdult,
+        vm.trendMovies, vm.trendSeries, vm.nowPlaying, vm.storage.showAdult, vm.exploreVersion,
     ) { vm.buildRails(scope) }
 
     val featured: Tile? = remember(rails) {
@@ -214,7 +239,7 @@ fun BrowseScreen(vm: AppViewModel, scope: Scope) {
                     items(rails, key = { it.key }) { rail ->
                         RailRow(
                             rail = rail,
-                            onTileClick = { openTile(vm, it) },
+                            onTileClick = { if (!openExplore(vm, it, scope)) openTile(vm, it) },
                             onTileFocused = { focusedTile = it },
                             onTileLongClick = { longPressFav(vm, context, it) },
                             onSeeAll = rail.seeAllTarget?.let { target -> { vm.openSeeAll(target) } },

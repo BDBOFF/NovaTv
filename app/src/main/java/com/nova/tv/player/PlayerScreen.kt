@@ -140,6 +140,12 @@ fun PlayerScreen(vm: AppViewModel, session: PlaySession) {
     var tracks by remember { mutableStateOf(Tracks.EMPTY) }
     var resizeIndex by remember { mutableIntStateOf(0) }
     var seekPreview by remember { mutableLongStateOf(-1L) }
+    var nextDismissedFor by remember { mutableIntStateOf(-1) }
+    val remaining = if (duration > 0) duration - position else Long.MAX_VALUE
+    val nextItem = session.items.getOrNull(index + 1)
+    val nextCardVisible = item.kind == Kind.EPISODE && nextItem != null && vm.storage.autoNext &&
+        nextDismissedFor != index && error == null && panel == null && remaining in 1..20_000
+
 
     val rootFocus = remember { FocusRequester() }
     val mainControl = remember { FocusRequester() }
@@ -195,7 +201,7 @@ fun PlayerScreen(vm: AppViewModel, session: PlaySession) {
                     val cur = session.items[index]
                     if (cur.kind != Kind.LIVE) vm.saveProgress(cur, player.duration, player.duration)
                     val next = index + 1
-                    if (cur.kind == Kind.EPISODE && vm.storage.autoNext && next <= session.items.lastIndex) {
+                    if (cur.kind == Kind.EPISODE && vm.storage.autoNext && nextDismissedFor != index && next <= session.items.lastIndex) {
                         index = next
                     } else if (cur.kind != Kind.LIVE) {
                         exit()
@@ -288,9 +294,9 @@ fun PlayerScreen(vm: AppViewModel, session: PlaySession) {
         }
     }
     // Gestion du focus quand l'interface apparaît / disparaît
-    LaunchedEffect(overlay, panel) {
+    LaunchedEffect(overlay, panel, nextCardVisible) {
         delay(60)
-        if (panel != null) return@LaunchedEffect
+        if (panel != null || nextCardVisible) return@LaunchedEffect
         if (overlay) runCatching { mainControl.requestFocus() } else runCatching { rootFocus.requestFocus() }
     }
 
@@ -329,7 +335,7 @@ fun PlayerScreen(vm: AppViewModel, session: PlaySession) {
                 goTo(index - 1); return true
             }
         }
-        if (panel != null || overlay) return false
+        if (panel != null || overlay || nextCardVisible) return false
         // Interface masquée : raccourcis directs
         return when (ev.key) {
             Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
@@ -434,8 +440,20 @@ fun PlayerScreen(vm: AppViewModel, session: PlaySession) {
                     onNext = { goTo(index + 1) },
                     onResize = { resizeIndex = (resizeIndex + 1) % resizeModes.size; touch() },
                     onFocusAny = { touch() },
+                    onSkipIntro = { seekBy(85_000) },
                 )
             }
+        }
+
+        // ------------------------------------------------------------------ Épisode suivant (fin d'épisode)
+        if (nextCardVisible && nextItem != null) {
+            NextEpisodeCard(
+                next = nextItem,
+                secondsLeft = (remaining / 1000).toInt().coerceAtLeast(0),
+                onPlay = { goTo(index + 1) },
+                onCancel = { nextDismissedFor = index; showOverlay() },
+                modifier = Modifier.align(Alignment.BottomEnd),
+            )
         }
 
         // ------------------------------------------------------------------ Panneaux latéraux
@@ -676,6 +694,7 @@ private fun VodOverlay(
     onNext: () -> Unit,
     onResize: () -> Unit,
     onFocusAny: () -> Unit,
+    onSkipIntro: () -> Unit,
 ) {
     Box(Modifier.fillMaxSize()) {
         TopInfo(item.title, item.subtitle, now)
@@ -694,8 +713,12 @@ private fun VodOverlay(
             Spacer(Modifier.height(18.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 ControlButton("", onToggle, onFocusAny) { c -> if (isPlaying) PauseGlyph(c, 14.dp) else PlayGlyph(c, 14.dp) }
-                ControlButton("-10 s", { onSeek(-10_000) }, onFocusAny) { }
-                ControlButton("+10 s", { onSeek(10_000) }, onFocusAny) { }
+                if (isEpisode && position in 0..300_000) {
+                    ControlButton("Passer l'intro", onSkipIntro, onFocusAny) { c -> PlayGlyph(c, 12.dp) }
+                } else {
+                    ControlButton("-10 s", { onSeek(-10_000) }, onFocusAny) { }
+                    ControlButton("+10 s", { onSeek(10_000) }, onFocusAny) { }
+                }
                 ControlButton("Audio", onAudio, onFocusAny) { }
                 ControlButton("Sous-titres", onSubs, onFocusAny) { }
                 ControlButton(resizeLabel, onResize, onFocusAny) { }
@@ -778,6 +801,41 @@ private fun LiveOverlay(
                 ControlButton("Audio", onAudio, onFocusAny) { }
                 ControlButton("Sous-titres", onSubs, onFocusAny) { }
                 ControlButton(resizeLabel, onResize, onFocusAny) { }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NextEpisodeCard(
+    next: PlayItem,
+    secondsLeft: Int,
+    onPlay: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier,
+) {
+    val playFocus = remember { FocusRequester() }
+    LaunchedEffect(next.id) {
+        delay(80); runCatching { playFocus.requestFocus() }
+    }
+    Row(
+        modifier
+            .padding(end = 48.dp, bottom = 48.dp)
+            .width(560.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Nova.Surface.copy(alpha = 0.96f))
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        NetImage(next.image, Modifier.size(176.dp, 99.dp).clip(RoundedCornerShape(10.dp)))
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Épisode suivant dans $secondsLeft s", style = Type.Small, color = Nova.Accent)
+            Text(next.subtitle, style = Type.H3, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ControlButton("Regarder", onPlay, {}, playFocus) { c -> PlayGlyph(c, 12.dp) }
+                ControlButton("Annuler", onCancel, {}) { }
             }
         }
     }

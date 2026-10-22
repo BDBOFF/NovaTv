@@ -315,6 +315,73 @@ object CardSize {
     val LandH = 128.dp
     val ChanW = 176.dp
     val ChanH = 99.dp
+    val WideW = 200.dp
+    val WideH = 112.dp
+}
+
+/** Tuile d'exploration (saga, genre, année) : image + grand titre. */
+@Composable
+fun ExploreCard(tile: Tile, onClick: () -> Unit, modifier: Modifier = Modifier, onFocused: () -> Unit = {}) {
+    FocusBox(
+        onClick = onClick,
+        modifier = modifier.width(CardSize.WideW).height(CardSize.WideH),
+        memoryKey = tile.key,
+        onFocused = onFocused,
+    ) { focused ->
+        NetImage(tile.image, Modifier.fillMaxSize())
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.linearGradient(
+                    listOf(Color.Black.copy(alpha = if (focused) 0.35f else 0.6f), Nova.Accent.copy(alpha = if (focused) 0.35f else 0.18f))
+                )
+            )
+        )
+        Column(Modifier.align(Alignment.Center).padding(horizontal = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                tile.title, style = Type.H1, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
+            tile.subtitle?.let {
+                Text(it, style = Type.Small, color = Color.White.copy(alpha = 0.85f), maxLines = 1, textAlign = TextAlign.Center)
+            }
+        }
+    }
+}
+
+/** Carte "Match du jour" : chaîne, horaire, affiche du match. */
+@Composable
+fun MatchCard(tile: Tile, onClick: () -> Unit, modifier: Modifier = Modifier, onFocused: () -> Unit = {}) {
+    val p = tile.program
+    val now = System.currentTimeMillis()
+    val live = p != null && p.isNow(now)
+    FocusBox(
+        onClick = onClick,
+        modifier = modifier.width(CardSize.LandW).height(CardSize.LandH),
+        memoryKey = tile.key,
+        onFocused = onFocused,
+    ) { focused ->
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.linearGradient(listOf(if (focused) Nova.Surface3 else Nova.Surface2, Color(0xFF2A0306)))
+            )
+        )
+        Column(Modifier.fillMaxSize().padding(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                NetImage(tile.image, Modifier.size(34.dp, 24.dp).background(Color.Transparent), contentScale = ContentScale.Fit)
+                Spacer(Modifier.width(8.dp))
+                Text(tile.subtitle ?: "", style = Type.Small, color = Nova.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                if (live) Badge("EN DIRECT") else if (p != null) Badge(formatClock(p.start), filled = false)
+            }
+            Spacer(Modifier.weight(1f))
+            Text(tile.title, style = Type.H3, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (live && p != null) {
+                Spacer(Modifier.height(6.dp))
+                ProgressLine(p.progress(now), Modifier.fillMaxWidth())
+            } else if (p != null) {
+                Text("${formatClock(p.start)} – ${formatClock(p.end)}", style = Type.Small, color = Nova.Muted)
+            }
+        }
+    }
 }
 
 @Composable
@@ -534,6 +601,8 @@ fun RailRow(
             RailStyle.POSTER, RailStyle.RANK -> CardSize.PosterH
             RailStyle.LANDSCAPE -> CardSize.LandH
             RailStyle.CHANNEL -> CardSize.ChanH
+            RailStyle.WIDE -> CardSize.WideH
+            RailStyle.MATCH -> CardSize.LandH
         }
         EdgeScroll { LazyRow(
             contentPadding = PaddingValues(horizontal = 48.dp, vertical = 10.dp),
@@ -549,6 +618,8 @@ fun RailRow(
                         val (now, p) = channelInfo(t)
                         ChannelTileCard(t, { onTileClick(t) }, nowTitle = now, progress = p, onFocused = { onTileFocused(t) }, onLongClick = onTileLongClick?.let { f -> { f(t) } })
                     }
+                    RailStyle.WIDE -> ExploreCard(t, { onTileClick(t) }, onFocused = { onTileFocused(t) })
+                    RailStyle.MATCH -> MatchCard(t, { onTileClick(t) }, onFocused = { onTileFocused(t) })
                 }
             }
             if (onSeeAll != null) {

@@ -16,9 +16,11 @@ data class Tile(
     val history: History? = null,
     val channel: Channel? = null,
     val seeAll: Boolean = false,
+    /** Pour les tuiles "match" : programme concerné. */
+    val program: com.nova.tv.data.EpgProgram? = null,
 )
 
-enum class RailStyle { POSTER, LANDSCAPE, RANK, CHANNEL }
+enum class RailStyle { POSTER, LANDSCAPE, RANK, CHANNEL, WIDE, MATCH }
 
 data class Rail(
     val key: String,
@@ -50,6 +52,9 @@ sealed interface Route {
     data class Player(val session: com.nova.tv.data.PlaySession) : Route
     data class Catalog(val type: com.nova.tv.data.ContentType) : Route
     data object LiveGrid : Route
+    data class Saga(val id: Int) : Route
+    /** Grille générique : mode "genre" ou "year". */
+    data class Grid(val mode: String, val key: String, val scope: Scope, val title: String) : Route
     data class TmdbDetail(val kind: String, val id: Int) : Route
 }
 
