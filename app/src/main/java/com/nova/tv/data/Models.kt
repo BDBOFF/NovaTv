@@ -28,6 +28,9 @@ object Kind {
     const val SERIES = "series"
     const val EPISODE = "episode"
     const val LIVE = "live"
+    /** Titres connus de TMDB mais absents (pour l'instant) du catalogue. */
+    const val TMDB_MOVIE = "tmdb_movie"
+    const val TMDB_TV = "tmdb_tv"
 }
 
 data class Category(val id: String, val name: String)
@@ -120,6 +123,7 @@ data class Fav(
     val title: String,
     val image: String? = null,
     val addedAt: Long = 0,
+    val year: String? = null,
 )
 
 @Serializable

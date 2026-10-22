@@ -48,7 +48,12 @@ sealed interface Route {
     data class MovieDetail(val id: Int) : Route
     data class SeriesDetail(val id: Int) : Route
     data class Player(val session: com.nova.tv.data.PlaySession) : Route
+    data class Catalog(val type: com.nova.tv.data.ContentType) : Route
+    data class TmdbDetail(val kind: String, val id: Int) : Route
 }
+
+/** Périmètre d'une page d'accueil : tout, films seulement, séries seulement. */
+enum class Scope { ALL, MOVIES, SERIES }
 
 /** Mémorise le dernier élément focalisé par écran pour le restaurer au retour. */
 class FocusMemory {

@@ -18,7 +18,7 @@ object Http {
     @Volatile
     var userAgent: String = DEFAULT_UA
 
-    const val DEFAULT_UA = "NovaTV/1.0 (Linux; Android TV)"
+    const val DEFAULT_UA = "SamothTV/1.0 (Linux; Android TV)"
 
     val client: OkHttpClient by lazy {
         OkHttpClient.Builder()

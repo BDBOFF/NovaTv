@@ -224,7 +224,7 @@ private fun MetadataSection(vm: AppViewModel) {
     var key by remember { mutableStateOf(vm.storage.tmdbKey) }
     val context = LocalContext.current
     Text(
-        "Nova utilise The Movie Database (TMDB) pour les fonds d'écran, logos de titres, résumés en français, " +
+        "SamothTV utilise The Movie Database (TMDB) pour les fonds d'écran, logos de titres, résumés en français, " +
             "distribution et tendances. Créez une clé gratuite sur themoviedb.org → Paramètres → API, puis collez-la ici " +
             "(clé API v3 ou jeton d'accès v4).",
         style = Type.Body, color = Nova.Muted,
@@ -269,10 +269,10 @@ private fun AdvancedSection(vm: AppViewModel) {
 
 @Composable
 private fun AboutSection() {
-    InfoRow("Application", "Nova TV")
+    InfoRow("Application", "SamothTV")
     InfoRow("Version", BuildConfig.VERSION_NAME)
     Text(
-        "Nova est un lecteur : il ne fournit aucune chaîne ni aucun contenu. Utilisez uniquement des abonnements " +
+        "SamothTV est un lecteur : il ne fournit aucune chaîne ni aucun contenu. Utilisez uniquement des abonnements " +
             "légaux auxquels vous avez droit. Données de films et séries fournies par TMDB ; " +
             "ce produit utilise l'API TMDB mais n'est ni approuvé ni certifié par TMDB.",
         style = Type.Body, color = Nova.Muted,

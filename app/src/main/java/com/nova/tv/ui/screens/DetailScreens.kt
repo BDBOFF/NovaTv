@@ -187,7 +187,7 @@ fun openTrailer(context: Context, key: String) {
 }
 
 @Composable
-private fun RequestInitialFocus(screen: String, requester: FocusRequester) {
+fun RequestInitialFocus(screen: String, requester: FocusRequester) {
     val memory = LocalFocusMemory.current
     LaunchedEffect(Unit) {
         val restoring = screen in memory.pending
@@ -445,6 +445,84 @@ private fun EpisodeCard(ep: Episode, progress: Float?, fallback: String?, onClic
                     Spacer(Modifier.height(5.dp))
                     ProgressLine(progress, Modifier.fillMaxWidth())
                 }
+            }
+        }
+    }
+}
+
+// ============================================================================ Titre TMDB (tendances, au cinéma)
+
+@Composable
+fun TmdbDetailScreen(vm: AppViewModel, kind: String, id: Int) {
+    val screen = "tmdb_${kind}_$id"
+    val context = LocalContext.current
+    val item = vm.tmdbItem(kind, id)
+    val fav = vm.storage.favorites.firstOrNull { it.kind == kind && it.id == id && it.accountId == vm.storage.activeId }
+    val d by produceState(vm.cachedDetails(kind, id), kind, id) {
+        if (value == null) value = vm.tmdbDetails(kind, id)
+    }
+    val details = d
+    val shown: Details? = details ?: item?.let {
+        Details(
+            title = it.title, logo = null, plot = it.overview, backdrop = it.backdrop, poster = it.poster,
+            year = it.year, genres = emptyList(), rating = it.rating, runtimeMin = null, director = null,
+            cast = emptyList(), trailer = null,
+        )
+    }
+    val title = shown?.title?.takeIf { it.isNotBlank() } ?: fav?.title ?: ""
+    val year = shown?.year ?: fav?.year
+    val available = remember(vm.movies, vm.series, title, year) { vm.resolveTmdb(kind, id, title, year) }
+    val isFav = vm.isFav(kind, id)
+    val primary = remember { FocusRequester() }
+    val poster = item?.poster ?: shown?.poster ?: fav?.image
+
+    CompositionLocalProvider(LocalScreenKey provides screen) {
+        RequestInitialFocus(screen, primary)
+        Box(Modifier.fillMaxSize()) {
+            DetailBackground(shown?.backdrop ?: poster)
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                Column(Modifier.padding(start = 48.dp, top = 56.dp, end = 48.dp)) {
+                    TitleBlock(title, shown)
+                    InfoBlock(shown, details == null && vm.tmdb() != null)
+                    Spacer(Modifier.height(18.dp))
+                    if (available != null) {
+                        com.nova.tv.ui.components.Badge("DISPONIBLE DANS VOTRE CATALOGUE")
+                    } else {
+                        com.nova.tv.ui.components.Badge("PAS ENCORE DANS VOTRE CATALOGUE", filled = false)
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "Ajoutez-le à vos favoris : il apparaîtra comme disponible dès que votre fournisseur l'ajoutera.",
+                            style = Type.Small, color = Nova.Muted,
+                        )
+                    }
+                    Spacer(Modifier.height(18.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (available != null) {
+                            NovaButton(
+                                "Regarder",
+                                onClick = { openTile(vm, available) },
+                                glyph = { c -> PlayGlyph(c, 13.dp) },
+                                primary = true,
+                                focusRequester = primary,
+                                memoryKey = "watch",
+                            )
+                        }
+                        NovaButton(
+                            if (isFav) "Dans mes favoris" else "Ajouter aux favoris",
+                            onClick = { vm.toggleFav(kind, id, title, poster, year) },
+                            icon = if (isFav) Icons.Filled.Check else Icons.Filled.Add,
+                            primary = available == null,
+                            focusRequester = if (available == null) primary else null,
+                            memoryKey = "fav",
+                        )
+                        shown?.trailer?.let { t ->
+                            NovaButton("Bande-annonce", onClick = { openTrailer(context, t) }, icon = Icons.Filled.Star, memoryKey = "trailer")
+                        }
+                    }
+                }
+                Spacer(Modifier.height(40.dp))
+                CastRow(shown?.cast.orEmpty())
+                Spacer(Modifier.height(60.dp))
             }
         }
     }

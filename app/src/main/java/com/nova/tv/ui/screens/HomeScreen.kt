@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,9 +48,11 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.nova.tv.AppViewModel
 import com.nova.tv.data.Details
+import com.nova.tv.data.ContentType
 import com.nova.tv.data.Kind
 import com.nova.tv.ui.Nova
 import com.nova.tv.ui.Route
+import com.nova.tv.ui.Scope
 import com.nova.tv.ui.Tile
 import com.nova.tv.ui.Type
 import com.nova.tv.ui.components.NovaButton
@@ -68,20 +71,19 @@ fun openTile(vm: AppViewModel, t: Tile) {
         Kind.LIVE -> t.channel?.let { ch ->
             vm.playChannel(ch, vm.channels.filter { it.categoryId == ch.categoryId })
         }
+        Kind.TMDB_MOVIE, Kind.TMDB_TV -> vm.navigate(Route.TmdbDetail(t.kind, t.id))
     }
 }
 
 @Composable
-fun HomeScreen(vm: AppViewModel) {
+fun BrowseScreen(vm: AppViewModel, scope: Scope) {
     val rails = remember(
-        vm.movies, vm.series, vm.channels, vm.storage.favorites, vm.storage.history,
-        vm.trendingMovies, vm.trendingSeries, vm.storage.showAdult,
-    ) { vm.buildHomeRails() }
+        scope, vm.movies, vm.series, vm.channels, vm.storage.favorites, vm.storage.history,
+        vm.trendMovies, vm.trendSeries, vm.nowPlaying, vm.storage.showAdult,
+    ) { vm.buildRails(scope) }
 
     val featured: Tile? = remember(rails) {
-        rails.firstOrNull { it.key == "trend_m" }?.tiles?.firstOrNull()
-            ?: rails.firstOrNull { it.key == "recent_m" }?.tiles?.firstOrNull()
-            ?: rails.firstOrNull()?.tiles?.firstOrNull { it.kind != Kind.LIVE }
+        rails.firstOrNull()?.tiles?.firstOrNull { it.kind != Kind.LIVE }
     }
     var focusedTile by remember { mutableStateOf<Tile?>(null) }
     var heroFocused by remember { mutableStateOf(false) }
@@ -99,7 +101,7 @@ fun HomeScreen(vm: AppViewModel) {
     }
 
     LaunchedEffect(featured != null) {
-        if (featured != null && !vm.initialFocusDone) {
+        if (scope == Scope.ALL && featured != null && !vm.initialFocusDone) {
             vm.initialFocusDone = true
             delay(120)
             runCatching { playRequester.requestFocus() }
@@ -184,6 +186,15 @@ fun HomeScreen(vm: AppViewModel) {
                         onClick = { featured?.let { openTile(vm, it) } },
                         icon = Icons.Filled.Info,
                     )
+                    if (scope != Scope.ALL) {
+                        NovaButton(
+                            "Catégories",
+                            onClick = {
+                                vm.navigate(Route.Catalog(if (scope == Scope.MOVIES) ContentType.MOVIE else ContentType.SERIES))
+                            },
+                            icon = Icons.Filled.List,
+                        )
+                    }
                 }
             }
             // ------------------------------------------------------------ Rangées

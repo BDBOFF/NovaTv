@@ -298,11 +298,13 @@ fun PosterCard(
     width: Dp = CardSize.PosterW,
     showTitle: Boolean = false,
     fill: Boolean = false,
+    focusRequester: FocusRequester? = null,
     onFocused: () -> Unit = {},
 ) {
     Column(if (fill) modifier.fillMaxWidth() else modifier.width(width)) {
         FocusBox(
             onClick = onClick,
+            focusRequester = focusRequester,
             modifier = if (fill) Modifier.fillMaxWidth().aspectRatio(2f / 3f) else Modifier.width(width).height(width * 1.5f),
             memoryKey = tile.key,
             onFocused = onFocused,

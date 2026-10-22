@@ -17,6 +17,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import com.nova.tv.ui.components.LocalScreenKey
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -105,6 +109,7 @@ fun CatalogScreen(vm: AppViewModel, type: ContentType) {
         }
     }
 
+    val firstItem = remember { FocusRequester() }
     Row(Modifier.fillMaxSize().padding(top = 8.dp)) {
         CategoryColumn(
             entries = cats,
@@ -137,6 +142,8 @@ fun CatalogScreen(vm: AppViewModel, type: ContentType) {
                 else -> {
                     val gridState = rememberLazyGridState()
                     LaunchedEffect(selected, sort) { gridState.scrollToItem(0) }
+                    val screen = LocalScreenKey.current
+                    if (screen.startsWith("catalog_")) RequestInitialFocus(screen, firstItem)
                     PivotScroll(pivot = 16.dp) {
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(6),
@@ -146,9 +153,10 @@ fun CatalogScreen(vm: AppViewModel, type: ContentType) {
                             verticalArrangement = Arrangement.spacedBy(18.dp),
                             modifier = Modifier.fillMaxSize(),
                         ) {
-                            items(list, key = { it.key }) { t ->
+                            itemsIndexed(list, key = { _, it -> it.key }) { i, t ->
                                 PosterCard(
                                     t,
+                                    focusRequester = if (i == 0) firstItem else null,
                                     onClick = { openTile(vm, t) },
                                     showTitle = true,
                                     fill = true,

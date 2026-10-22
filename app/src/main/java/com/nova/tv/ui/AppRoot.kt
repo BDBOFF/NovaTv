@@ -18,6 +18,11 @@ import androidx.compose.ui.platform.LocalContext
 import com.nova.tv.AppViewModel
 import com.nova.tv.player.PlayerScreen
 import com.nova.tv.ui.components.LocalFocusMemory
+import com.nova.tv.ui.components.LocalScreenKey
+import com.nova.tv.ui.screens.CatalogScreen
+import com.nova.tv.ui.screens.TmdbDetailScreen
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import com.nova.tv.ui.screens.LoginScreen
 import com.nova.tv.ui.screens.MainScreen
 import com.nova.tv.ui.screens.MovieDetailScreen
@@ -60,6 +65,8 @@ fun AppRoot(vm: AppViewModel) {
                 is Route.MovieDetail -> "movie_${route.id}"
                 is Route.SeriesDetail -> "series_${route.id}"
                 is Route.Player -> "player_${vm.backStack.size}"
+                is Route.Catalog -> "catalog_${route.type}"
+                is Route.TmdbDetail -> "tmdb_${route.kind}_${route.id}"
             }
             holder.SaveableStateProvider(key) {
                 when (route) {
@@ -69,6 +76,10 @@ fun AppRoot(vm: AppViewModel) {
                     is Route.MovieDetail -> MovieDetailScreen(vm, route.id)
                     is Route.SeriesDetail -> SeriesDetailScreen(vm, route.id)
                     is Route.Player -> PlayerScreen(vm, route.session)
+                    is Route.Catalog -> CompositionLocalProvider(LocalScreenKey provides "catalog_${route.type}") {
+                        Box(Modifier.fillMaxSize().padding(top = 28.dp)) { CatalogScreen(vm, route.type) }
+                    }
+                    is Route.TmdbDetail -> TmdbDetailScreen(vm, route.kind, route.id)
                 }
             }
         }

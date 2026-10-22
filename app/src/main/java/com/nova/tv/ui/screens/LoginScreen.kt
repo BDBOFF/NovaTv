@@ -51,6 +51,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -71,11 +73,32 @@ fun BrandMark(size: Int = 44) {
     Box(
         Modifier
             .size(size.dp)
-            .clip(RoundedCornerShape((size * 0.26f).dp))
-            .background(Nova.AccentBrush),
-        contentAlignment = Alignment.Center,
+            .clip(RoundedCornerShape((size * 0.22f).dp))
+            .background(Brush.linearGradient(listOf(Nova.Accent, Nova.Accent2))),
     ) {
-        Text("N", style = Type.H1.copy(fontSize = (size * 0.6f).sp, lineHeight = (size * 0.7f).sp), color = Color.White)
+        Text(
+            "S",
+            style = Type.H1.copy(fontWeight = FontWeight.Black, fontSize = (size * 0.72f).sp, lineHeight = (size * 0.8f).sp),
+            color = Color(0xFF08080A),
+            modifier = Modifier.align(Alignment.Center).padding(end = (size * 0.1f).dp),
+        )
+        Text(
+            "TV",
+            style = Type.Label.copy(fontWeight = FontWeight.Black, fontSize = (size * 0.2f).sp, lineHeight = (size * 0.22f).sp),
+            color = Color.White,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = (size * 0.08f).dp, bottom = (size * 0.06f).dp),
+        )
+    }
+}
+
+/** Logo complet : pictogramme S-TV + "SAMOTH TV". */
+@Composable
+fun Wordmark(markSize: Int = 30, textStyle: TextStyle = Type.H2) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        BrandMark(markSize)
+        Spacer(Modifier.width((markSize * 0.35f).dp))
+        Text("SAMOTH", style = textStyle.copy(fontWeight = FontWeight.Black), color = Color.White)
+        Text(" TV", style = textStyle.copy(fontWeight = FontWeight.Black), color = Nova.Accent)
     }
 }
 
@@ -86,14 +109,12 @@ fun SplashScreen(vm: AppViewModel) {
     Box(
         Modifier
             .fillMaxSize()
-            .background(Brush.radialGradient(listOf(Color(0xFF3A1208), Nova.Bg), radius = 1400f)),
+            .background(Brush.radialGradient(listOf(Color(0xFF3A0508), Nova.Bg), radius = 1400f)),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.alpha(a)) {
-                BrandMark(64)
-                Spacer(Modifier.width(18.dp))
-                Text("NOVA", style = Type.Display.copy(fontSize = Type.Display.fontSize * 1.4f))
+            Box(Modifier.alpha(a)) {
+                Wordmark(68, Type.Display.copy(fontSize = Type.Display.fontSize * 1.2f))
             }
             Spacer(Modifier.height(36.dp))
             Text(vm.loadingText.ifBlank { "Démarrage…" }, style = Type.Body, color = Nova.Muted)
@@ -210,16 +231,12 @@ fun LoginScreen(vm: AppViewModel) {
                 .fillMaxHeight()
                 .background(
                     Brush.linearGradient(
-                        listOf(Color(0xFF2B0D06), Color(0xFF120806), Nova.Bg),
+                        listOf(Color(0xFF2A0306), Color(0xFF120204), Nova.Bg),
                     )
                 )
                 .padding(56.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                BrandMark(40)
-                Spacer(Modifier.width(12.dp))
-                Text("NOVA", style = Type.H1)
-            }
+            Wordmark(40, Type.H1)
             Column(Modifier.align(Alignment.CenterStart)) {
                 Text("Votre TV,", style = Type.Display.copy(fontSize = Type.Display.fontSize * 1.25f))
                 Text(

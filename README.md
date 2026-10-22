@@ -1,4 +1,4 @@
-# Nova TV — lecteur IPTV pour Android TV
+# SamothTV — lecteur IPTV pour Android TV
 
 Lecteur Xtream Codes pour Android TV, Google TV, Fire TV et box Android.
 Interface pensée pour la télécommande : accueil immersif, fiches détaillées avec TMDB,

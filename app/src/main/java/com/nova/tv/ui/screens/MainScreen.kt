@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import com.nova.tv.AppViewModel
 import com.nova.tv.data.ContentType
 import com.nova.tv.ui.MainTab
+import com.nova.tv.ui.Scope
 import com.nova.tv.ui.Nova
 import com.nova.tv.ui.Type
 import com.nova.tv.ui.components.FocusBox
@@ -73,9 +74,9 @@ fun MainScreen(vm: AppViewModel) {
     Box(Modifier.fillMaxSize().background(Nova.Bg)) {
         CompositionLocalProvider(LocalScreenKey provides screenKey(vm.tab)) {
             when (vm.tab) {
-                MainTab.HOME -> HomeScreen(vm)
-                MainTab.MOVIES -> Box(Modifier.padding(top = 64.dp)) { CatalogScreen(vm, ContentType.MOVIE) }
-                MainTab.SERIES -> Box(Modifier.padding(top = 64.dp)) { CatalogScreen(vm, ContentType.SERIES) }
+                MainTab.HOME -> BrowseScreen(vm, Scope.ALL)
+                MainTab.MOVIES -> BrowseScreen(vm, Scope.MOVIES)
+                MainTab.SERIES -> BrowseScreen(vm, Scope.SERIES)
                 MainTab.LIVE -> Box(Modifier.padding(top = 64.dp)) { LiveScreen(vm) }
                 MainTab.GUIDE -> Box(Modifier.padding(top = 64.dp)) { GuideScreen(vm) }
                 MainTab.SEARCH -> Box(Modifier.padding(top = 64.dp)) { SearchScreen(vm) }
@@ -104,9 +105,7 @@ private fun TopBar(vm: AppViewModel, requesters: Map<MainTab, FocusRequester>) {
             .padding(horizontal = 48.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BrandMark(28)
-        Spacer(Modifier.width(10.dp))
-        Text("NOVA", style = Type.H2)
+        Wordmark(28, Type.H2)
         Spacer(Modifier.width(30.dp))
         Row(
             Modifier

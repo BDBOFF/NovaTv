@@ -6,7 +6,18 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import java.net.URLEncoder
 
-data class TmdbTrend(val title: String, val originalTitle: String?, val year: String?)
+/** Un titre TMDB (tendance, au cinéma…), présent ou non dans le catalogue IPTV. */
+data class TmdbItem(
+    val id: Int,
+    val type: String, // "movie" ou "tv"
+    val title: String,
+    val originalTitle: String?,
+    val year: String?,
+    val poster: String?,
+    val backdrop: String?,
+    val overview: String?,
+    val rating: Double?,
+)
 
 /**
  * Enrichissement des fiches via The Movie Database (gratuit, clé personnelle).
@@ -97,16 +108,34 @@ class Tmdb(val key: String) {
         )
     }
 
-    suspend fun trending(type: String): List<TmdbTrend> {
-        val o = get("/trending/$type/week") ?: return emptyList()
-        return o["results"].items().mapNotNull { it.obj() }.map {
-            TmdbTrend(
-                title = it.firstOf("title", "name") ?: "",
-                originalTitle = it.firstOf("original_title", "original_name"),
-                year = Titles.year(it.firstOf("release_date", "first_air_date")),
-            )
-        }
+    private fun item(type: String, it: JsonObject): TmdbItem? {
+        val id = it.i("id") ?: return null
+        return TmdbItem(
+            id = id,
+            type = type,
+            title = it.firstOf("title", "name") ?: return null,
+            originalTitle = it.firstOf("original_title", "original_name"),
+            year = Titles.year(it.firstOf("release_date", "first_air_date")),
+            poster = it.s("poster_path")?.let { p -> "${IMG}w500$p" },
+            backdrop = it.s("backdrop_path")?.let { p -> "${IMG}w1280$p" },
+            overview = it.s("overview"),
+            rating = it.d("vote_average")?.takeIf { r -> r > 0 },
+        )
     }
+
+    private suspend fun list(type: String, path: String, query: String = ""): List<TmdbItem> {
+        val o = get(path, query) ?: return emptyList()
+        return o["results"].items().mapNotNull { it.obj() }.mapNotNull { item(type, it) }
+    }
+
+    /** Tendances de la semaine (films ou séries), 2 pages. */
+    suspend fun trending(type: String): List<TmdbItem> =
+        (list(type, "/trending/$type/week") + list(type, "/trending/$type/week", "page=2")).distinctBy { it.id }
+
+    /** Films actuellement au cinéma en France. */
+    suspend fun nowPlaying(): List<TmdbItem> = list("movie", "/movie/now_playing", "region=FR")
+
+    suspend fun detailsById(type: String, id: Int): Details? = details(type, id.toString(), "", null)
 
     companion object {
         private const val API = "https://api.themoviedb.org/3"

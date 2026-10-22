@@ -29,6 +29,7 @@ import com.nova.tv.data.SeriesContent
 import com.nova.tv.data.Storage
 import com.nova.tv.data.Titles
 import com.nova.tv.data.Tmdb
+import com.nova.tv.data.TmdbItem
 import com.nova.tv.data.XtreamClient
 import com.nova.tv.data.normalizeServer
 import com.nova.tv.ui.FocusMemory
@@ -36,6 +37,7 @@ import com.nova.tv.ui.MainTab
 import com.nova.tv.ui.Rail
 import com.nova.tv.ui.RailStyle
 import com.nova.tv.ui.Route
+import com.nova.tv.ui.Scope
 import com.nova.tv.ui.SeeAll
 import com.nova.tv.ui.Special
 import com.nova.tv.ui.Tile
@@ -96,11 +98,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var counts: Map<String, Int> = emptyMap()
         private set
 
-    var trendingMovies by mutableStateOf<List<Movie>>(emptyList())
+    var trendMovies by mutableStateOf<List<TmdbItem>>(emptyList())
         private set
-    var trendingSeries by mutableStateOf<List<Series>>(emptyList())
+    var trendSeries by mutableStateOf<List<TmdbItem>>(emptyList())
         private set
-    var trendingFromTmdb by mutableStateOf(false)
+    var nowPlaying by mutableStateOf<List<TmdbItem>>(emptyList())
         private set
 
     // ------------------------------------------------------------- Caches
@@ -147,13 +149,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun openSeeAll(target: SeeAll) {
-        val type = when (target.tab) {
-            MainTab.MOVIES -> ContentType.MOVIE
-            MainTab.SERIES -> ContentType.SERIES
-            else -> ContentType.LIVE
+        when (target.tab) {
+            MainTab.MOVIES -> {
+                selection[ContentType.MOVIE] = target.category
+                navigate(Route.Catalog(ContentType.MOVIE))
+            }
+            MainTab.SERIES -> {
+                selection[ContentType.SERIES] = target.category
+                navigate(Route.Catalog(ContentType.SERIES))
+            }
+            else -> tab = target.tab
         }
-        selection[type] = target.category
-        tab = target.tab
     }
 
     // ============================================================= Connexion
@@ -204,7 +210,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             buildIndexes()
             epg.clear(); epgTime.clear(); epgFull.clear()
             details.clear(); contents.clear()
-            trendingMovies = emptyList(); trendingSeries = emptyList()
+            trendMovies = emptyList(); trendSeries = emptyList(); nowPlaying = emptyList()
             focus.last.clear(); focus.pending.clear()
             initialFocusDone = false
             selection.clear()
@@ -235,6 +241,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         movies.forEach { map.merge("M:${it.categoryId}", 1, Int::plus) }
         series.forEach { map.merge("S:${it.categoryId}", 1, Int::plus) }
         counts = map
+        moviesByTmdb = movies.mapNotNull { m -> m.tmdbId?.takeIf { it != "0" }?.let { it to m } }.toMap()
+        moviesByNorm = movies.groupBy { Titles.normalize(it.title) }
+        seriesByTmdb = series.mapNotNull { x -> x.tmdbId?.takeIf { it != "0" }?.let { it to x } }.toMap()
+        seriesByNorm = series.groupBy { Titles.normalize(it.title) }
     }
 
     fun refresh() {
@@ -320,8 +330,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun isFav(kind: String, id: Int) = storage.isFav(accId, kind, id)
 
-    fun toggleFav(kind: String, id: Int, title: String, image: String?) {
-        storage.toggleFav(Fav(accId, kind, id, title, image, System.currentTimeMillis()))
+    fun toggleFav(kind: String, id: Int, title: String, image: String?, year: String? = null) {
+        storage.toggleFav(Fav(accId, kind, id, title, image, System.currentTimeMillis(), year))
     }
 
     fun favorites(kind: String): List<Fav> = storage.favorites.filter { it.accountId == accId && it.kind == kind }
@@ -417,6 +427,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         Kind.MOVIE -> moviesById[tile.id]?.let { movieDetails(it) }
         Kind.SERIES -> seriesById[tile.id]?.let { seriesDetails(it) }
         Kind.EPISODE -> tile.history?.seriesId?.let { seriesById[it] }?.let { seriesDetails(it) }
+        Kind.TMDB_MOVIE, Kind.TMDB_TV -> tmdbDetails(tile.kind, tile.id)
         else -> null
     }
 
@@ -424,6 +435,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         Kind.MOVIE -> cachedDetails(Kind.MOVIE, tile.id)
         Kind.SERIES -> cachedDetails(Kind.SERIES, tile.id)
         Kind.EPISODE -> tile.history?.seriesId?.let { cachedDetails(Kind.SERIES, it) }
+        Kind.TMDB_MOVIE, Kind.TMDB_TV -> details["${tile.kind}:${tile.id}"]
         else -> null
     }
 
@@ -434,40 +446,99 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         s?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.take(12)
             ?.map { com.nova.tv.data.CastMember(it, null, null) } ?: emptyList()
 
-    // ============================================================= Tendances
+    // ============================================================= TMDB ↔ catalogue
+
+    private var moviesByTmdb: Map<String, Movie> = emptyMap()
+    private var moviesByNorm: Map<String, List<Movie>> = emptyMap()
+    private var seriesByTmdb: Map<String, Series> = emptyMap()
+    private var seriesByNorm: Map<String, List<Series>> = emptyMap()
+    private val tmdbItems = HashMap<String, TmdbItem>()
+
+    fun tmdbItem(kind: String, id: Int): TmdbItem? = tmdbItems["$kind:$id"]
+
+    fun matchMovie(tmdbId: Int?, title: String, original: String?, year: String?): Movie? {
+        val hidden = hiddenCategoryIds(ContentType.MOVIE)
+        if (tmdbId != null) moviesByTmdb[tmdbId.toString()]?.takeIf { it.categoryId !in hidden }?.let { return it }
+        val cands = (moviesByNorm[Titles.normalize(title)].orEmpty() +
+            (original?.let { moviesByNorm[Titles.normalize(it)] }.orEmpty()))
+            .filter { it.categoryId !in hidden }
+        if (cands.isEmpty()) return null
+        if (year == null) return cands.first()
+        return cands.firstOrNull { it.year == year } ?: cands.firstOrNull { it.year == null }
+    }
+
+    fun matchSeries(tmdbId: Int?, title: String, original: String?): Series? {
+        val hidden = hiddenCategoryIds(ContentType.SERIES)
+        if (tmdbId != null) seriesByTmdb[tmdbId.toString()]?.takeIf { it.categoryId !in hidden }?.let { return it }
+        val cands = (seriesByNorm[Titles.normalize(title)].orEmpty() +
+            (original?.let { seriesByNorm[Titles.normalize(it)] }.orEmpty()))
+            .filter { it.categoryId !in hidden }
+        return cands.maxByOrNull { it.lastModified }
+    }
+
+    /** Si un titre TMDB est arrivé dans le catalogue, renvoie la tuile du catalogue. */
+    fun resolveTmdb(kind: String, id: Int, title: String, year: String?): Tile? {
+        val original = tmdbItem(kind, id)?.originalTitle
+        return if (kind == Kind.TMDB_MOVIE) matchMovie(id, title, original, year)?.let { movieTile(it) }
+        else matchSeries(id, title, original)?.let { seriesTile(it) }
+    }
+
+    fun tmdbTile(item: TmdbItem): Tile {
+        val kind = if (item.type == "movie") Kind.TMDB_MOVIE else Kind.TMDB_TV
+        tmdbItems["$kind:${item.id}"] = item
+        val inCatalog = if (item.type == "movie") matchMovie(item.id, item.title, item.originalTitle, item.year)?.let { movieTile(it) }
+        else matchSeries(item.id, item.title, item.originalTitle)?.let { seriesTile(it) }
+        return inCatalog ?: Tile(
+            key = "t$kind${item.id}", kind = kind, id = item.id, title = item.title,
+            image = item.poster, subtitle = item.year, badge = "BIENTÔT",
+        )
+    }
+
+    suspend fun tmdbDetails(kind: String, id: Int): Details? {
+        details["$kind:$id"]?.let { return it }
+        val t = tmdb() ?: return null
+        val d = runCatching { t.detailsById(if (kind == Kind.TMDB_MOVIE) "movie" else "tv", id) }.getOrNull() ?: return null
+        details["$kind:$id"] = d
+        return d
+    }
 
     private suspend fun loadTrending() {
-        val t = tmdb()
-        if (t != null) {
-            val mv = runCatching { t.trending("movie") }.getOrDefault(emptyList())
-            val tv = runCatching { t.trending("tv") }.getOrDefault(emptyList())
-            val (m, s) = withContext(Dispatchers.Default) {
-                val mIndex = visibleMovies().groupBy { Titles.normalize(it.title) }
-                val sIndex = visibleSeries().groupBy { Titles.normalize(it.title) }
-                val m = mv.mapNotNull { tr ->
-                    val cands = mIndex[Titles.normalize(tr.title)]
-                        ?: tr.originalTitle?.let { mIndex[Titles.normalize(it)] }
-                    cands?.let { list -> list.firstOrNull { it.year == tr.year } ?: list.first() }
-                }.distinctBy { it.id }.take(10)
-                val s = tv.mapNotNull { tr ->
-                    val cands = sIndex[Titles.normalize(tr.title)]
-                        ?: tr.originalTitle?.let { sIndex[Titles.normalize(it)] }
-                    cands?.first()
-                }.distinctBy { it.id }.take(10)
-                m to s
-            }
-            if (m.size >= 3) {
-                trendingMovies = m; trendingSeries = s; trendingFromTmdb = true
-                return
-            }
+        val t = tmdb() ?: return
+        coroutineScope {
+            val m = async { runCatching { t.trending("movie") }.getOrDefault(emptyList()) }
+            val s = async { runCatching { t.trending("tv") }.getOrDefault(emptyList()) }
+            val c = async { runCatching { t.nowPlaying() }.getOrDefault(emptyList()) }
+            trendMovies = m.await()
+            trendSeries = s.await()
+            nowPlaying = c.await()
         }
-        withContext(Dispatchers.Default) {
-            val m = visibleMovies().sortedByDescending { it.added }.take(300)
-                .filter { it.rating != null }.sortedByDescending { it.rating }.take(10)
-            val s = visibleSeries().sortedByDescending { it.lastModified }.take(300)
-                .filter { it.rating != null }.sortedByDescending { it.rating }.take(10)
-            trendingMovies = m; trendingSeries = s; trendingFromTmdb = false
+    }
+
+    private fun currentYear() = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+
+    private fun topRatedMovies(n: Int): List<Movie> {
+        val pool = visibleMovies().filter { (it.rating ?: 0.0) in 5.0..9.6 }
+        val recent = pool.filter { (it.year?.toIntOrNull() ?: 0) >= currentYear() - 4 }
+        val src = if (recent.size >= n) recent else pool
+        return src.sortedWith(compareByDescending<Movie> { it.rating ?: 0.0 }.thenByDescending { it.added })
+            .distinctBy { Titles.normalize(it.title) }.take(n)
+    }
+
+    private fun topRatedSeries(n: Int): List<Series> {
+        val pool = visibleSeries().filter { (it.rating ?: 0.0) in 5.0..9.6 }
+        val recent = pool.filter { (it.year?.toIntOrNull() ?: 0) >= currentYear() - 4 }
+        val src = if (recent.size >= n) recent else pool
+        return src.sortedWith(compareByDescending<Series> { it.rating ?: 0.0 }.thenByDescending { it.lastModified })
+            .distinctBy { Titles.normalize(it.title) }.take(n)
+    }
+
+    private fun <T> interleave(a: List<T>, b: List<T>): List<T> {
+        val out = ArrayList<T>(a.size + b.size)
+        for (i in 0 until maxOf(a.size, b.size)) {
+            if (i < a.size) out += a[i]
+            if (i < b.size) out += b[i]
         }
+        return out
     }
 
     // ============================================================= Tuiles & rangées
@@ -507,71 +578,115 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
-    fun buildHomeRails(): List<Rail> {
+    private fun pendingFavTile(f: Fav): Tile {
+        val resolved = resolveTmdb(f.kind, f.id, f.title, f.year)
+        return resolved?.copy(badge = "DISPONIBLE") ?: Tile(
+            key = "t${f.kind}${f.id}", kind = f.kind, id = f.id, title = f.title,
+            image = f.image, subtitle = f.year, badge = "BIENTÔT",
+        )
+    }
+
+    fun favoriteTiles(scope: Scope): List<Tile> =
+        storage.favorites.filter { it.accountId == accId }.mapNotNull { f ->
+            when (f.kind) {
+                Kind.MOVIE -> if (scope == Scope.SERIES) null else moviesById[f.id]?.let { movieTile(it) }
+                Kind.SERIES -> if (scope == Scope.MOVIES) null else seriesById[f.id]?.let { seriesTile(it) }
+                Kind.TMDB_MOVIE -> if (scope == Scope.SERIES) null else pendingFavTile(f)
+                Kind.TMDB_TV -> if (scope == Scope.MOVIES) null else pendingFavTile(f)
+                else -> null
+            }
+        }.distinctBy { it.key }
+
+    /** Rangées d'une page (Accueil, Films ou Séries), dans l'ordre voulu. */
+    fun buildRails(scope: Scope): List<Rail> {
         val rails = ArrayList<Rail>()
         val vm = visibleMovies()
         val vs = visibleSeries()
+        val wantM = scope != Scope.SERIES
+        val wantS = scope != Scope.MOVIES
 
-        continueWatching().takeIf { it.isNotEmpty() }?.let { list ->
-            rails += Rail("resume", "Reprendre la lecture", RailStyle.LANDSCAPE, list.map { historyTile(it) })
-        }
-        if (trendingMovies.isNotEmpty()) {
+        // 1. Les mieux notés (films et séries mélangés sur l'accueil)
+        val top = when (scope) {
+            Scope.ALL -> interleave(topRatedMovies(10).map { movieTile(it) }, topRatedSeries(10).map { seriesTile(it) }).take(10)
+            Scope.MOVIES -> topRatedMovies(10).map { movieTile(it) }
+            Scope.SERIES -> topRatedSeries(10).map { seriesTile(it) }
+        }.mapIndexed { i, t -> t.copy(rank = i + 1, key = "top_${t.key}") }
+        if (top.isNotEmpty()) rails += Rail("top", "Les mieux notés", RailStyle.RANK, top)
+
+        // 2. Tendances de la semaine (TMDB), y compris les titres pas encore disponibles
+        val trend = when (scope) {
+            Scope.ALL -> interleave(trendMovies.map { tmdbTile(it) }, trendSeries.map { tmdbTile(it) })
+            Scope.MOVIES -> trendMovies.map { tmdbTile(it) }
+            Scope.SERIES -> trendSeries.map { tmdbTile(it) }
+        }.distinctBy { it.key }.take(30).map { it.copy(key = "trend_${it.key}") }
+        if (trend.isNotEmpty()) rails += Rail("trend", "Tendances de la semaine", RailStyle.POSTER, trend)
+
+        if (scope == Scope.MOVIES && nowPlaying.isNotEmpty()) {
             rails += Rail(
-                "trend_m", if (trendingFromTmdb) "Tendances cette semaine" else "Les mieux notés",
-                RailStyle.RANK, trendingMovies.mapIndexed { i, m -> movieTile(m, i + 1) },
+                "cinema", "Actuellement au cinéma", RailStyle.POSTER,
+                nowPlaying.map { tmdbTile(it) }.distinctBy { it.key }.map { it.copy(key = "cine_${it.key}") },
             )
         }
-        if (vm.isNotEmpty()) {
+
+        // 3. Reprendre la lecture
+        val resume = continueWatching().filter {
+            when (scope) {
+                Scope.ALL -> true
+                Scope.MOVIES -> it.kind == Kind.MOVIE
+                Scope.SERIES -> it.kind == Kind.EPISODE
+            }
+        }
+        if (resume.isNotEmpty()) {
+            rails += Rail("resume", "Reprendre la lecture", RailStyle.LANDSCAPE, resume.map { historyTile(it) })
+        }
+
+        // 4. Favoris
+        val favs = favoriteTiles(scope)
+        if (favs.isNotEmpty()) rails += Rail("favs", "Favoris", RailStyle.POSTER, favs)
+
+        // 5. Nouveautés
+        if (wantM && vm.isNotEmpty()) {
             rails += Rail(
                 "recent_m", "Films récemment ajoutés", RailStyle.POSTER,
                 vm.sortedByDescending { it.added }.take(24).map { movieTile(it) },
                 SeeAll(MainTab.MOVIES, Special.RECENT),
             )
         }
-        val favs = storage.favorites.filter { it.accountId == accId && it.kind != Kind.LIVE }
-        if (favs.isNotEmpty()) {
-            rails += Rail("favs", "Ma liste", RailStyle.POSTER, favs.mapNotNull { f ->
-                when (f.kind) {
-                    Kind.MOVIE -> moviesById[f.id]?.let { movieTile(it) }
-                    Kind.SERIES -> seriesById[f.id]?.let { seriesTile(it) }
-                    else -> null
-                }
-            })
-        }
-        if (vs.isNotEmpty()) {
+        if (wantS && vs.isNotEmpty()) {
             rails += Rail(
                 "recent_s", "Séries mises à jour", RailStyle.POSTER,
                 vs.sortedByDescending { it.lastModified }.take(24).map { seriesTile(it) },
                 SeeAll(MainTab.SERIES, Special.RECENT),
             )
         }
-        if (trendingSeries.size >= 3) {
-            rails += Rail(
-                "trend_s", if (trendingFromTmdb) "Séries tendance" else "Séries les mieux notées",
-                RailStyle.RANK, trendingSeries.mapIndexed { i, s -> seriesTile(s, i + 1) },
-            )
+        if (scope == Scope.ALL) {
+            val liveFav = favorites(Kind.LIVE).mapNotNull { channelsById[it.id] }
+            val liveRecent = history(Kind.LIVE).mapNotNull { channelsById[it.id] }
+            val liveRow = (liveFav + liveRecent).distinctBy { it.id }.take(20)
+            if (liveRow.isNotEmpty()) rails += Rail("live", "Vos chaînes", RailStyle.CHANNEL, liveRow.map { channelTile(it) })
         }
-        val liveFav = favorites(Kind.LIVE).mapNotNull { channelsById[it.id] }
-        val liveRecent = history(Kind.LIVE).mapNotNull { channelsById[it.id] }
-        val liveRow = (liveFav + liveRecent).distinctBy { it.id }.take(20)
-        if (liveRow.isNotEmpty()) {
-            rails += Rail("live", "Vos chaînes", RailStyle.CHANNEL, liveRow.map { channelTile(it) })
+
+        // 6. Catégories
+        val catLimit = if (scope == Scope.ALL) 4 else 40
+        if (wantM) {
+            val byCat = vm.groupBy { it.categoryId }
+            categoriesOf(ContentType.MOVIE).filter { (byCat[it.id]?.size ?: 0) >= 4 }.take(catLimit).forEach { cat ->
+                rails += Rail(
+                    "mc_${cat.id}", cat.name, RailStyle.POSTER,
+                    byCat[cat.id].orEmpty().sortedByDescending { it.added }.take(20).map { movieTile(it) },
+                    SeeAll(MainTab.MOVIES, cat.id),
+                )
+            }
         }
-        val byCat = vm.groupBy { it.categoryId }
-        categoriesOf(ContentType.MOVIE).filter { (byCat[it.id]?.size ?: 0) >= 8 }.take(5).forEach { cat ->
-            rails += Rail(
-                "mc_${cat.id}", cat.name, RailStyle.POSTER,
-                byCat[cat.id].orEmpty().sortedByDescending { it.added }.take(20).map { movieTile(it) },
-                SeeAll(MainTab.MOVIES, cat.id),
-            )
-        }
-        val sByCat = vs.groupBy { it.categoryId }
-        categoriesOf(ContentType.SERIES).filter { (sByCat[it.id]?.size ?: 0) >= 8 }.take(3).forEach { cat ->
-            rails += Rail(
-                "sc_${cat.id}", cat.name, RailStyle.POSTER,
-                sByCat[cat.id].orEmpty().sortedByDescending { it.lastModified }.take(20).map { seriesTile(it) },
-                SeeAll(MainTab.SERIES, cat.id),
-            )
+        if (wantS) {
+            val byCat = vs.groupBy { it.categoryId }
+            categoriesOf(ContentType.SERIES).filter { (byCat[it.id]?.size ?: 0) >= 4 }.take(if (scope == Scope.ALL) 3 else 40).forEach { cat ->
+                rails += Rail(
+                    "sc_${cat.id}", cat.name, RailStyle.POSTER,
+                    byCat[cat.id].orEmpty().sortedByDescending { it.lastModified }.take(20).map { seriesTile(it) },
+                    SeeAll(MainTab.SERIES, cat.id),
+                )
+            }
         }
         return rails
     }
