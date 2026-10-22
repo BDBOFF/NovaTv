@@ -99,6 +99,7 @@ object Titles {
     )
     private val yearParen = Regex("[\\(\\[]\\s*(19|20)\\d{2}\\s*[\\)\\]]")
     private val yearEnd = Regex("\\s*[\\-–]\\s*(19|20)\\d{2}\\s*$")
+    private val trailingYear = Regex("\\s((?:19|20)\\d{2})$")
     private val yearAny = Regex("(?<!\\d)(19[2-9]\\d|20[0-3]\\d)(?!\\d)")
     private val quality = Regex("(?i)(?<![\\p{L}\\d])(4K|UHD|FHD|HD|SD|HEVC|LOW|720P|1080P)(?![\\p{L}\\d])")
 
@@ -107,7 +108,15 @@ object Titles {
         s = s.replace(yearParen, "")
         s = s.replace(yearEnd, "")
         s = s.replace(tags, "")
+        s = s.replace(Regex("[\\(\\[]\\s*[\\)\\]]"), "")
         s = s.replace(Regex("\\s{2,}"), " ").trim().trim('-', '|', '–', ':', ' ')
+        // Année collée en fin de titre ("Vaiana 2 2026") : on la retire si elle est récente
+        val m = trailingYear.find(s)
+        if (m != null) {
+            val y = m.groupValues[1].toInt()
+            val rest = s.substring(0, m.range.first).trim()
+            if (rest.length >= 2 && y in 1920..(java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) + 1)) s = rest
+        }
         return s.ifBlank { raw.trim() }
     }
 

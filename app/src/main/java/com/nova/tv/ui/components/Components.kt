@@ -393,17 +393,13 @@ fun LandscapeCard(tile: Tile, onClick: () -> Unit, modifier: Modifier = Modifier
 
 @Composable
 fun RankCard(tile: Tile, onClick: () -> Unit, modifier: Modifier = Modifier, onFocused: () -> Unit = {}, onLongClick: (() -> Unit)? = null) {
-    Box(modifier.width(CardSize.PosterW + 62.dp).height(CardSize.PosterH)) {
-        Text(
-            text = "${tile.rank ?: ""}",
-            fontFamily = Inter,
-            fontWeight = FontWeight.Black,
-            fontSize = 150.sp,
-            lineHeight = 150.sp,
-            letterSpacing = (-12).sp,
-            color = Color.White.copy(alpha = 0.16f),
-            modifier = Modifier.align(Alignment.BottomStart).offset(x = (-6).dp, y = 22.dp),
-            maxLines = 1,
+    val rank = tile.rank ?: 0
+    // Zone du chiffre élargie pour 2 chiffres : le numéro reste entièrement lisible
+    val numberZone = if (rank >= 10) 128.dp else 70.dp
+    Box(modifier.width(CardSize.PosterW + numberZone).height(CardSize.PosterH)) {
+        RankNumber(
+            "$rank",
+            Modifier.align(Alignment.BottomStart).offset(x = (-2).dp, y = 18.dp),
         )
         FocusBox(
             onClick = onClick,
@@ -471,6 +467,31 @@ fun SeeAllCard(onClick: () -> Unit, height: Dp, width: Dp = 112.dp) {
     }
 }
 
+/**
+ * Gros chiffre du classement façon Netflix : contour clair et intérieur sombre,
+ * lisible même quand l'affiche le chevauche légèrement.
+ */
+@Composable
+private fun RankNumber(text: String, modifier: Modifier) {
+    val size = if (text.length >= 2) 118.sp else 128.sp
+    val spacing = if (text.length >= 2) (-6).sp else 0.sp
+    val outline = Color(0xFF9A9AA8)
+    val w = 2.dp
+    Box(modifier) {
+        for ((dx, dy) in listOf(-1 to 0, 1 to 0, 0 to -1, 0 to 1, -1 to -1, 1 to 1, -1 to 1, 1 to -1)) {
+            Text(
+                text, fontFamily = Inter, fontWeight = FontWeight.Black, fontSize = size, lineHeight = size,
+                letterSpacing = spacing, color = outline, maxLines = 1,
+                modifier = Modifier.offset(x = w * dx, y = w * dy),
+            )
+        }
+        Text(
+            text, fontFamily = Inter, fontWeight = FontWeight.Black, fontSize = size, lineHeight = size,
+            letterSpacing = spacing, color = Nova.Bg, maxLines = 1,
+        )
+    }
+}
+
 /** Rangée horizontale titrée de l'accueil / des fiches. */
 @Composable
 fun RailRow(
@@ -490,7 +511,7 @@ fun RailRow(
         }
         EdgeScroll { LazyRow(
             contentPadding = PaddingValues(horizontal = 48.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(if (rail.style == RailStyle.RANK) 6.dp else 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (rail.style == RailStyle.RANK) 10.dp else 14.dp),
             modifier = Modifier.fillMaxWidth().height(h + 20.dp),
         ) {
             items(rail.tiles, key = { it.key }) { t ->
