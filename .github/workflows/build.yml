@@ -33,6 +33,16 @@ jobs:
           name: NovaTV-apk
           path: NovaTV.apk
 
+      - name: Publier l'APK (lien fixe)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" NovaTV.apk \
+            --title "Nova TV · version ${{ github.run_number }}" \
+            --notes "APK prêt à installer. Lien fixe : https://github.com/${{ github.repository }}/releases/latest/download/NovaTV.apk" \
+            --latest
+
       - name: Joindre l'APK à la release
         if: github.event_name == 'release'
         env:
