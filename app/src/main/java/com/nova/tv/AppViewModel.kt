@@ -197,8 +197,30 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 selection[ContentType.SERIES] = target.category
                 navigate(Route.Catalog(ContentType.SERIES))
             }
+            MainTab.LIVE -> {
+                selection[ContentType.LIVE] = target.category
+                navigate(Route.LiveGrid)
+            }
             else -> tab = target.tab
         }
+    }
+
+    /** Rangées de la page TV Direct. */
+    fun buildLiveRails(): List<Rail> {
+        val rails = ArrayList<Rail>()
+        val fav = favorites(Kind.LIVE).mapNotNull { channelsById[it.id] }
+        if (fav.isNotEmpty()) rails += Rail("l_fav", "Favoris", RailStyle.CHANNEL, fav.map { channelTile(it) }, SeeAll(MainTab.LIVE, Special.FAV))
+        val recent = history(Kind.LIVE).mapNotNull { channelsById[it.id] }.take(20)
+        if (recent.isNotEmpty()) rails += Rail("l_recent", "Récemment regardées", RailStyle.CHANNEL, recent.map { channelTile(it) }, SeeAll(MainTab.LIVE, Special.HISTORY))
+        val byCat = visibleChannels().groupBy { it.categoryId }
+        categoriesOf(ContentType.LIVE).filter { (byCat[it.id]?.size ?: 0) > 0 }.take(30).forEach { cat ->
+            rails += Rail(
+                "l_${cat.id}", cat.name, RailStyle.CHANNEL,
+                byCat[cat.id].orEmpty().take(30).map { channelTile(it) },
+                SeeAll(MainTab.LIVE, cat.id),
+            )
+        }
+        return rails
     }
 
     // ============================================================= Connexion

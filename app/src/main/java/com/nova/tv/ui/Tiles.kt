@@ -49,6 +49,7 @@ sealed interface Route {
     data class SeriesDetail(val id: Int) : Route
     data class Player(val session: com.nova.tv.data.PlaySession) : Route
     data class Catalog(val type: com.nova.tv.data.ContentType) : Route
+    data object LiveGrid : Route
     data class TmdbDetail(val kind: String, val id: Int) : Route
 }
 

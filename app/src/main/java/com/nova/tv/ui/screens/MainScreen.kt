@@ -77,7 +77,7 @@ fun MainScreen(vm: AppViewModel) {
                 MainTab.HOME -> BrowseScreen(vm, Scope.ALL)
                 MainTab.MOVIES -> BrowseScreen(vm, Scope.MOVIES)
                 MainTab.SERIES -> BrowseScreen(vm, Scope.SERIES)
-                MainTab.LIVE -> Box(Modifier.padding(top = 64.dp)) { LiveScreen(vm) }
+                MainTab.LIVE -> LiveHomeScreen(vm)
                 MainTab.GUIDE -> Box(Modifier.padding(top = 64.dp)) { GuideScreen(vm) }
                 MainTab.SEARCH -> Box(Modifier.padding(top = 64.dp)) { SearchScreen(vm) }
                 MainTab.SETTINGS -> Box(Modifier.padding(top = 64.dp)) { SettingsScreen(vm) }
