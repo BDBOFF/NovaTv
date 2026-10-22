@@ -67,7 +67,7 @@ fun CatalogScreen(vm: AppViewModel, type: ContentType) {
         val total = if (isMovie) vm.visibleMovies().size else vm.visibleSeries().size
         add(CatEntry(Special.ALL, "Tout", total))
         add(CatEntry(Special.RECENT, "Ajouts récents", minOf(total, 100)))
-        add(CatEntry(Special.FAV, "Ma liste", vm.favorites(favKind).size))
+        add(CatEntry(Special.FAV, "Favoris", vm.favorites(favKind).size))
         if (isMovie) add(CatEntry(Special.RESUME, "En cours", vm.history(Kind.MOVIE).count { it.progress in 0.02f..0.94f }))
         vm.categoriesOf(type).forEach { add(CatEntry(it.id, it.name, vm.count(type, it.id))) }
     }
@@ -110,6 +110,7 @@ fun CatalogScreen(vm: AppViewModel, type: ContentType) {
     }
 
     val firstItem = remember { FocusRequester() }
+    val context = androidx.compose.ui.platform.LocalContext.current
     Row(Modifier.fillMaxSize().padding(top = 8.dp)) {
         CategoryColumn(
             entries = cats,
@@ -160,6 +161,7 @@ fun CatalogScreen(vm: AppViewModel, type: ContentType) {
                                     onClick = { openTile(vm, t) },
                                     showTitle = true,
                                     fill = true,
+                                    onLongClick = { longPressFav(vm, context, t) },
                                 )
                             }
                         }

@@ -396,6 +396,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         storage.toggleFav(Fav(accId, kind, id, title, image, System.currentTimeMillis(), year))
     }
 
+    /** Ajoute/retire une tuile des favoris (appui long). Renvoie le message à afficher. */
+    fun toggleFavTile(t: Tile): String? {
+        val kind = when (t.kind) {
+            Kind.MOVIE, Kind.SERIES, Kind.LIVE, Kind.TMDB_MOVIE, Kind.TMDB_TV -> t.kind
+            else -> return null
+        }
+        val image = when (kind) {
+            Kind.MOVIE -> moviesById[t.id]?.poster
+            Kind.SERIES -> seriesById[t.id]?.cover
+            Kind.LIVE -> channelsById[t.id]?.logo
+            else -> t.image
+        } ?: t.image
+        val year = if (kind == Kind.TMDB_MOVIE || kind == Kind.TMDB_TV) t.subtitle else null
+        toggleFav(kind, t.id, t.title, image, year)
+        return if (isFav(kind, t.id)) "« ${t.title} » ajouté aux favoris" else "« ${t.title} » retiré des favoris"
+    }
+
     fun favorites(kind: String): List<Fav> = storage.favorites.filter { it.accountId == accId && it.kind == kind }
 
     fun history(kind: String? = null): List<History> =
@@ -672,7 +689,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             Scope.ALL -> interleave(trendMovies.map { tmdbTile(it) }, trendSeries.map { tmdbTile(it) })
             Scope.MOVIES -> trendMovies.map { tmdbTile(it) }
             Scope.SERIES -> trendSeries.map { tmdbTile(it) }
-        }.distinctBy { it.key }.take(10).mapIndexed { i, t -> t.copy(rank = i + 1, key = "trend_${t.key}") }
+        }.distinctBy { it.key }.take(20).mapIndexed { i, t -> t.copy(rank = i + 1, key = "trend_${t.key}") }
         if (trend.isNotEmpty()) rails += Rail("trend", "Tendances de la semaine", RailStyle.RANK, trend)
 
         // 2. Les mieux notés (films et séries mélangés sur l'accueil)

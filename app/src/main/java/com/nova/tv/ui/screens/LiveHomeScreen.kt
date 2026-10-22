@@ -62,6 +62,7 @@ fun LiveHomeScreen(vm: AppViewModel) {
     var focused by remember { mutableStateOf<Tile?>(null) }
     var heroFocused by remember { mutableStateOf(false) }
     val now = rememberNow(30_000)
+    val context = androidx.compose.ui.platform.LocalContext.current
     val listState = rememberLazyListState()
 
     if (rails.isEmpty()) {
@@ -189,6 +190,7 @@ fun LiveHomeScreen(vm: AppViewModel) {
                                 rail = rail,
                                 onTileClick = { t -> t.channel?.let { c -> vm.playChannel(c, list) } },
                                 onTileFocused = { focused = it },
+                                onTileLongClick = { longPressFav(vm, context, it) },
                                 onSeeAll = rail.seeAllTarget?.let { target -> { vm.openSeeAll(target) } },
                                 channelInfo = { t -> channelNow(vm, t) },
                             )

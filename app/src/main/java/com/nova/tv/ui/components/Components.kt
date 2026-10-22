@@ -63,6 +63,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import coil.compose.AsyncImage
 import com.nova.tv.ui.FocusMemory
 import com.nova.tv.ui.Inter
@@ -95,11 +100,15 @@ fun FocusBox(
     memoryKey: String? = null,
     focusRequester: FocusRequester? = null,
     onFocused: () -> Unit = {},
+    onLongClick: (() -> Unit)? = null,
     content: @Composable BoxScope.(focused: Boolean) -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    val scale by animateFloatAsState(if (focused) focusedScale else 1f, tween(170), label = "focusScale")
+    val scale by animateFloatAsState(if (focused) focusedScale else 1f, tween(120), label = "focusScale")
+    val longState = remember { booleanArrayOf(false) }
+    val onClickState by rememberUpdatedState(onClick)
+    val onLongState by rememberUpdatedState(onLongClick)
     val memory = LocalFocusMemory.current
     val screen = LocalScreenKey.current
     val requester = focusRequester ?: remember { FocusRequester() }
@@ -125,13 +134,31 @@ fun FocusBox(
         modifier
             .zIndex(if (focused) 1f else 0f)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .then(
-                if (focused && glow) Modifier.shadow(20.dp, shape, ambientColor = Color.Black, spotColor = Color.Black)
-                else Modifier
-            )
             .clip(shape)
             .then(if (focused) Modifier.border(borderWidth, borderColor, shape) else Modifier)
             .focusRequester(requester)
+            .then(
+                if (onLongClick == null) Modifier
+                else Modifier.onPreviewKeyEvent { ev ->
+                    val k = ev.key
+                    if (k != Key.DirectionCenter && k != Key.Enter && k != Key.NumPadEnter) return@onPreviewKeyEvent false
+                    when (ev.type) {
+                        KeyEventType.KeyDown -> {
+                            if (ev.nativeKeyEvent.repeatCount >= 1 && !longState[0]) {
+                                longState[0] = true
+                                onLongState?.invoke()
+                            }
+                            true
+                        }
+                        KeyEventType.KeyUp -> {
+                            if (!longState[0]) onClickState()
+                            longState[0] = false
+                            true
+                        }
+                        else -> false
+                    }
+                }
+            )
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
     ) {
         content(focused)
@@ -300,10 +327,12 @@ fun PosterCard(
     fill: Boolean = false,
     focusRequester: FocusRequester? = null,
     onFocused: () -> Unit = {},
+    onLongClick: (() -> Unit)? = null,
 ) {
     Column(if (fill) modifier.fillMaxWidth() else modifier.width(width)) {
         FocusBox(
             onClick = onClick,
+            onLongClick = onLongClick,
             focusRequester = focusRequester,
             modifier = if (fill) Modifier.fillMaxWidth().aspectRatio(2f / 3f) else Modifier.width(width).height(width * 1.5f),
             memoryKey = tile.key,
@@ -363,7 +392,7 @@ fun LandscapeCard(tile: Tile, onClick: () -> Unit, modifier: Modifier = Modifier
 }
 
 @Composable
-fun RankCard(tile: Tile, onClick: () -> Unit, modifier: Modifier = Modifier, onFocused: () -> Unit = {}) {
+fun RankCard(tile: Tile, onClick: () -> Unit, modifier: Modifier = Modifier, onFocused: () -> Unit = {}, onLongClick: (() -> Unit)? = null) {
     Box(modifier.width(CardSize.PosterW + 62.dp).height(CardSize.PosterH)) {
         Text(
             text = "${tile.rank ?: ""}",
@@ -380,6 +409,7 @@ fun RankCard(tile: Tile, onClick: () -> Unit, modifier: Modifier = Modifier, onF
             onClick = onClick,
             modifier = Modifier.align(Alignment.CenterEnd).width(CardSize.PosterW).height(CardSize.PosterH),
             memoryKey = tile.key,
+            onLongClick = onLongClick,
             onFocused = onFocused,
         ) { _ ->
             NetImage(tile.image, Modifier.fillMaxSize(), fallbackText = tile.title)
@@ -396,11 +426,13 @@ fun ChannelTileCard(
     nowTitle: String? = null,
     progress: Float? = null,
     onFocused: () -> Unit = {},
+    onLongClick: (() -> Unit)? = null,
 ) {
     FocusBox(
         onClick = onClick,
         modifier = modifier.width(CardSize.ChanW).height(CardSize.ChanH),
         memoryKey = tile.key,
+        onLongClick = onLongClick,
         onFocused = onFocused,
     ) { focused ->
         Box(Modifier.fillMaxSize().background(if (focused) Nova.Surface3 else Nova.Surface2))
@@ -445,6 +477,7 @@ fun RailRow(
     rail: Rail,
     onTileClick: (Tile) -> Unit,
     onTileFocused: (Tile) -> Unit = {},
+    onTileLongClick: ((Tile) -> Unit)? = null,
     onSeeAll: (() -> Unit)? = null,
     channelInfo: @Composable (Tile) -> Pair<String?, Float?> = { null to null },
 ) {
@@ -462,12 +495,12 @@ fun RailRow(
         ) {
             items(rail.tiles, key = { it.key }) { t ->
                 when (rail.style) {
-                    RailStyle.POSTER -> PosterCard(t, { onTileClick(t) }, onFocused = { onTileFocused(t) })
-                    RailStyle.RANK -> RankCard(t, { onTileClick(t) }, onFocused = { onTileFocused(t) })
+                    RailStyle.POSTER -> PosterCard(t, { onTileClick(t) }, onFocused = { onTileFocused(t) }, onLongClick = onTileLongClick?.let { f -> { f(t) } })
+                    RailStyle.RANK -> RankCard(t, { onTileClick(t) }, onFocused = { onTileFocused(t) }, onLongClick = onTileLongClick?.let { f -> { f(t) } })
                     RailStyle.LANDSCAPE -> LandscapeCard(t, { onTileClick(t) }, onFocused = { onTileFocused(t) })
                     RailStyle.CHANNEL -> {
                         val (now, p) = channelInfo(t)
-                        ChannelTileCard(t, { onTileClick(t) }, nowTitle = now, progress = p, onFocused = { onTileFocused(t) })
+                        ChannelTileCard(t, { onTileClick(t) }, nowTitle = now, progress = p, onFocused = { onTileFocused(t) }, onLongClick = onTileLongClick?.let { f -> { f(t) } })
                     }
                 }
             }

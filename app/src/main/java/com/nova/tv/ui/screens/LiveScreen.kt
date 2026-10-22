@@ -86,6 +86,7 @@ fun LiveScreen(vm: AppViewModel) {
     val cats = remember(vm.channels, vm.storage.favorites, vm.storage.history, vm.storage.showAdult) { liveCategoryEntries(vm) }
     val list = remember(selected, vm.channels, vm.storage.favorites, vm.storage.history) { channelsFor(vm, selected) }
     val now = rememberNow()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Row(Modifier.fillMaxSize().padding(top = 8.dp)) {
         CategoryColumn(cats, selected, { vm.selection[ContentType.LIVE] = it }, 270.dp)
@@ -100,7 +101,7 @@ fun LiveScreen(vm: AppViewModel) {
             if (list.isEmpty()) {
                 EmptyState(
                     "Aucune chaîne",
-                    if (selected == Special.FAV) "Ajoutez une chaîne aux favoris depuis le lecteur (bouton cœur)." else "Cette catégorie est vide.",
+                    if (selected == Special.FAV) "Appui long sur OK sur une chaîne pour l'ajouter, ou bouton cœur dans le lecteur." else "Cette catégorie est vide.",
                 )
             } else {
                 val gridState = rememberLazyGridState()
@@ -115,7 +116,7 @@ fun LiveScreen(vm: AppViewModel) {
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         items(list, key = { it.id }) { ch ->
-                            ChannelCard(vm, ch, now) { vm.playChannel(ch, list) }
+                            ChannelCard(vm, ch, now, onLongClick = { longPressFav(vm, context, vm.channelTile(ch)) }) { vm.playChannel(ch, list) }
                         }
                     }
                 }
@@ -125,7 +126,7 @@ fun LiveScreen(vm: AppViewModel) {
 }
 
 @Composable
-fun ChannelCard(vm: AppViewModel, ch: Channel, now: Long, onClick: () -> Unit) {
+fun ChannelCard(vm: AppViewModel, ch: Channel, now: Long, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
     LaunchedEffect(ch.id) { vm.ensureEpg(ch) }
     val programs = vm.epg[ch.id]
     val current = programs?.firstOrNull { it.isNow(now) }
@@ -134,6 +135,7 @@ fun ChannelCard(vm: AppViewModel, ch: Channel, now: Long, onClick: () -> Unit) {
 
     FocusBox(
         onClick = onClick,
+        onLongClick = onLongClick,
         modifier = Modifier.fillMaxWidth().height(112.dp),
         focusedScale = 1.05f,
         memoryKey = "ch_${ch.id}",

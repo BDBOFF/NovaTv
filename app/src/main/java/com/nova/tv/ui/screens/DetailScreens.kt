@@ -248,7 +248,7 @@ fun MovieDetailScreen(vm: AppViewModel, id: Int) {
                             NovaButton("Depuis le début", onClick = { vm.playMovie(movie, fromStart = true) }, icon = Icons.Filled.Refresh, memoryKey = "restart")
                         }
                         NovaButton(
-                            if (fav) "Dans ma liste" else "Ma liste",
+                            if (fav) "Dans les favoris" else "Favoris",
                             onClick = { vm.toggleFav(Kind.MOVIE, id, movie.title, movie.poster) },
                             icon = if (fav) Icons.Filled.Check else Icons.Filled.Add,
                             memoryKey = "fav",
@@ -354,7 +354,7 @@ fun SeriesDetailScreen(vm: AppViewModel, id: Int) {
                             memoryKey = "play",
                         )
                         NovaButton(
-                            if (fav) "Dans ma liste" else "Ma liste",
+                            if (fav) "Dans les favoris" else "Favoris",
                             onClick = { vm.toggleFav(Kind.SERIES, id, series.title, series.cover) },
                             icon = if (fav) Icons.Filled.Check else Icons.Filled.Add,
                             memoryKey = "fav",

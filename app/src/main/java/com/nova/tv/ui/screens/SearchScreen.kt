@@ -34,6 +34,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun SearchScreen(vm: AppViewModel) {
     var query by rememberSaveable { mutableStateOf("") }
+    val context = androidx.compose.ui.platform.LocalContext.current
     val result by produceState<AppViewModel.SearchResult?>(null, query, vm.movies) {
         if (query.isBlank()) {
             value = null; return@produceState
@@ -80,6 +81,7 @@ fun SearchScreen(vm: AppViewModel) {
                                         if (ch != null) vm.playChannel(ch, r.channels) else openTile(vm, t)
                                     },
                                     channelInfo = { t -> channelNow(vm, t) },
+                                    onTileLongClick = { longPressFav(vm, context, it) },
                                 )
                             }
                         }

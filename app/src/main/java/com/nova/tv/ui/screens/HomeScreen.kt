@@ -75,8 +75,14 @@ fun openTile(vm: AppViewModel, t: Tile) {
     }
 }
 
+/** Appui long sur une tuile : ajout / retrait des favoris avec confirmation. */
+fun longPressFav(vm: AppViewModel, context: android.content.Context, t: Tile) {
+    vm.toggleFavTile(t)?.let { android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show() }
+}
+
 @Composable
 fun BrowseScreen(vm: AppViewModel, scope: Scope) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val rails = remember(
         scope, vm.movies, vm.series, vm.channels, vm.storage.favorites, vm.storage.history,
         vm.trendMovies, vm.trendSeries, vm.nowPlaying, vm.storage.showAdult,
@@ -210,6 +216,7 @@ fun BrowseScreen(vm: AppViewModel, scope: Scope) {
                             rail = rail,
                             onTileClick = { openTile(vm, it) },
                             onTileFocused = { focusedTile = it },
+                            onTileLongClick = { longPressFav(vm, context, it) },
                             onSeeAll = rail.seeAllTarget?.let { target -> { vm.openSeeAll(target) } },
                             channelInfo = { t -> channelNow(vm, t) },
                         )
