@@ -645,21 +645,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val wantM = scope != Scope.SERIES
         val wantS = scope != Scope.MOVIES
 
-        // 1. Les mieux notés (films et séries mélangés sur l'accueil)
+        // 1. Tendances de la semaine (TMDB) — Top 10, y compris les titres pas encore disponibles
+        val trend = when (scope) {
+            Scope.ALL -> interleave(trendMovies.map { tmdbTile(it) }, trendSeries.map { tmdbTile(it) })
+            Scope.MOVIES -> trendMovies.map { tmdbTile(it) }
+            Scope.SERIES -> trendSeries.map { tmdbTile(it) }
+        }.distinctBy { it.key }.take(10).mapIndexed { i, t -> t.copy(rank = i + 1, key = "trend_${t.key}") }
+        if (trend.isNotEmpty()) rails += Rail("trend", "Tendances de la semaine", RailStyle.RANK, trend)
+
+        // 2. Les mieux notés (films et séries mélangés sur l'accueil)
         val top = when (scope) {
             Scope.ALL -> interleave(topRatedMovies(10).map { movieTile(it) }, topRatedSeries(10).map { seriesTile(it) }).take(10)
             Scope.MOVIES -> topRatedMovies(10).map { movieTile(it) }
             Scope.SERIES -> topRatedSeries(10).map { seriesTile(it) }
         }.mapIndexed { i, t -> t.copy(rank = i + 1, key = "top_${t.key}") }
         if (top.isNotEmpty()) rails += Rail("top", "Les mieux notés", RailStyle.RANK, top)
-
-        // 2. Tendances de la semaine (TMDB), y compris les titres pas encore disponibles
-        val trend = when (scope) {
-            Scope.ALL -> interleave(trendMovies.map { tmdbTile(it) }, trendSeries.map { tmdbTile(it) })
-            Scope.MOVIES -> trendMovies.map { tmdbTile(it) }
-            Scope.SERIES -> trendSeries.map { tmdbTile(it) }
-        }.distinctBy { it.key }.take(30).map { it.copy(key = "trend_${it.key}") }
-        if (trend.isNotEmpty()) rails += Rail("trend", "Tendances de la semaine", RailStyle.POSTER, trend)
 
         if (scope == Scope.MOVIES && nowPlaying.isNotEmpty()) {
             rails += Rail(
