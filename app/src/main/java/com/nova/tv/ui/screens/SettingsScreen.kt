@@ -45,7 +45,7 @@ import com.nova.tv.ui.components.formatDate
 private enum class Section(val label: String) {
     ACCOUNT("Compte"),
     PLAYLISTS("Playlists"),
-    PLAYBACK("Lecture"),
+    PLAYBACK("Lecture & affichage"),
     METADATA("Affiches & fiches"),
     ADVANCED("Avancé"),
     ABOUT("Mise à jour & infos"),
@@ -202,6 +202,11 @@ private fun PlaybackSection(vm: AppViewModel) {
         listOf("ts" to "MPEG-TS (recommandé)", "m3u8" to "HLS"),
         vm.storage.liveFormat,
     ) { vm.storage.liveFormat = it }
+    ChoiceRow(
+        "Style des chiffres du classement",
+        com.nova.tv.ui.components.RankStyle.entries.map { it.name to it.label },
+        vm.storage.rankStyle,
+    ) { vm.storage.rankStyle = it }
     ToggleRow(
         "Épisode suivant automatique",
         "Enchaîne l'épisode suivant à la fin d'un épisode.",

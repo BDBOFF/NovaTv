@@ -394,12 +394,12 @@ fun LandscapeCard(tile: Tile, onClick: () -> Unit, modifier: Modifier = Modifier
 @Composable
 fun RankCard(tile: Tile, onClick: () -> Unit, modifier: Modifier = Modifier, onFocused: () -> Unit = {}, onLongClick: (() -> Unit)? = null) {
     val rank = tile.rank ?: 0
-    // Zone du chiffre élargie pour 2 chiffres : le numéro reste entièrement lisible
-    val numberZone = if (rank >= 10) 128.dp else 70.dp
+    // L'affiche chevauche toujours un peu le chiffre, même à 2 chiffres
+    val numberZone = if (rank >= 10) 118.dp else 62.dp
     Box(modifier.width(CardSize.PosterW + numberZone).height(CardSize.PosterH)) {
         RankNumber(
             "$rank",
-            Modifier.align(Alignment.BottomStart).offset(x = (-2).dp, y = 18.dp),
+            Modifier.align(Alignment.BottomStart).offset(x = (-6).dp, y = 22.dp),
         )
         FocusBox(
             onClick = onClick,
@@ -471,24 +471,50 @@ fun SeeAllCard(onClick: () -> Unit, height: Dp, width: Dp = 112.dp) {
  * Gros chiffre du classement façon Netflix : contour clair et intérieur sombre,
  * lisible même quand l'affiche le chevauche légèrement.
  */
+/** Style des gros chiffres du classement (réglable dans Réglages → Lecture & affichage). */
+enum class RankStyle(val label: String) { CLASSIC("Classique"), OUTLINE("Contour"), NEON("Néon rouge") }
+
+val LocalRankStyle = staticCompositionLocalOf { RankStyle.CLASSIC }
+
 @Composable
 private fun RankNumber(text: String, modifier: Modifier) {
-    val size = if (text.length >= 2) 118.sp else 128.sp
-    val spacing = if (text.length >= 2) (-6).sp else 0.sp
-    val outline = Color(0xFF9A9AA8)
-    val w = 2.dp
-    Box(modifier) {
-        for ((dx, dy) in listOf(-1 to 0, 1 to 0, 0 to -1, 0 to 1, -1 to -1, 1 to 1, -1 to 1, 1 to -1)) {
-            Text(
-                text, fontFamily = Inter, fontWeight = FontWeight.Black, fontSize = size, lineHeight = size,
-                letterSpacing = spacing, color = outline, maxLines = 1,
-                modifier = Modifier.offset(x = w * dx, y = w * dy),
-            )
-        }
-        Text(
+    val two = text.length >= 2
+    val size = if (two) 140.sp else 150.sp
+    val spacing = if (two) (-14).sp else (-12).sp
+    when (LocalRankStyle.current) {
+        RankStyle.CLASSIC -> Text(
             text, fontFamily = Inter, fontWeight = FontWeight.Black, fontSize = size, lineHeight = size,
-            letterSpacing = spacing, color = Nova.Bg, maxLines = 1,
+            letterSpacing = spacing, color = Color.White.copy(alpha = 0.18f), maxLines = 1, modifier = modifier,
         )
+        RankStyle.OUTLINE, RankStyle.NEON -> {
+            val neon = LocalRankStyle.current == RankStyle.NEON
+            val outline = if (neon) Nova.Accent else Color(0xFF9A9AA8)
+            val fill = if (neon) Color(0xFF1A0003) else Nova.Bg
+            val w = if (neon) 2.5.dp else 2.dp
+            Box(modifier) {
+                if (neon) {
+                    // halo diffus
+                    for ((dx, dy) in listOf(-3 to 0, 3 to 0, 0 to -3, 0 to 3)) {
+                        Text(
+                            text, fontFamily = Inter, fontWeight = FontWeight.Black, fontSize = size, lineHeight = size,
+                            letterSpacing = spacing, color = Nova.Accent.copy(alpha = 0.25f), maxLines = 1,
+                            modifier = Modifier.offset(x = w * dx, y = w * dy),
+                        )
+                    }
+                }
+                for ((dx, dy) in listOf(-1 to 0, 1 to 0, 0 to -1, 0 to 1, -1 to -1, 1 to 1, -1 to 1, 1 to -1)) {
+                    Text(
+                        text, fontFamily = Inter, fontWeight = FontWeight.Black, fontSize = size, lineHeight = size,
+                        letterSpacing = spacing, color = outline, maxLines = 1,
+                        modifier = Modifier.offset(x = w * dx, y = w * dy),
+                    )
+                }
+                Text(
+                    text, fontFamily = Inter, fontWeight = FontWeight.Black, fontSize = size, lineHeight = size,
+                    letterSpacing = spacing, color = fill, maxLines = 1,
+                )
+            }
+        }
     }
 }
 
@@ -511,7 +537,7 @@ fun RailRow(
         }
         EdgeScroll { LazyRow(
             contentPadding = PaddingValues(horizontal = 48.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(if (rail.style == RailStyle.RANK) 10.dp else 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (rail.style == RailStyle.RANK) 6.dp else 14.dp),
             modifier = Modifier.fillMaxWidth().height(h + 20.dp),
         ) {
             items(rail.tiles, key = { it.key }) { t ->

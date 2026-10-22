@@ -18,6 +18,8 @@ import androidx.compose.ui.platform.LocalContext
 import com.nova.tv.AppViewModel
 import com.nova.tv.player.PlayerScreen
 import com.nova.tv.ui.components.LocalFocusMemory
+import com.nova.tv.ui.components.LocalRankStyle
+import com.nova.tv.ui.components.RankStyle
 import com.nova.tv.ui.components.LocalScreenKey
 import com.nova.tv.ui.screens.CatalogScreen
 import com.nova.tv.ui.screens.LiveScreen
@@ -57,7 +59,10 @@ fun AppRoot(vm: AppViewModel) {
         }
     }
 
-    CompositionLocalProvider(LocalFocusMemory provides vm.focus) {
+    CompositionLocalProvider(
+        LocalFocusMemory provides vm.focus,
+        LocalRankStyle provides (runCatching { RankStyle.valueOf(vm.storage.rankStyle) }.getOrNull() ?: RankStyle.CLASSIC),
+    ) {
         Box(Modifier.fillMaxSize().background(Nova.Bg)) {
             val key = when (route) {
                 Route.Splash -> "splash"

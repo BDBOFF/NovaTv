@@ -60,6 +60,13 @@ class Storage(context: Context) {
             _autoNext.value = v; prefs.edit().putBoolean("autoNext", v).apply()
         }
 
+    private val _rankStyle = mutableStateOf(prefs.getString("rankStyle", "CLASSIC") ?: "CLASSIC")
+    var rankStyle: String
+        get() = _rankStyle.value
+        set(v) {
+            _rankStyle.value = v; prefs.edit().putString("rankStyle", v).apply()
+        }
+
     private val _showAdult = mutableStateOf(prefs.getBoolean("showAdult", false))
     var showAdult: Boolean
         get() = _showAdult.value
