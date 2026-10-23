@@ -166,6 +166,15 @@ private fun AccountSection(vm: AppViewModel) {
         InfoRow("Connexions", "${info.activeConnections ?: 0} / ${info.maxConnections ?: "?"}")
         if (info.isTrial) InfoRow("Type", "Essai")
     }
+    InfoRow(
+        "Synchronisation",
+        when {
+            !vm.sync.enabled -> "Bientôt disponible"
+            vm.sync.lastSync > 0 -> "Activée · ${com.nova.tv.ui.components.formatClock(vm.sync.lastSync)}"
+            else -> "Activée"
+        },
+        if (vm.sync.enabled) Nova.Green else Nova.Muted,
+    )
     InfoRow("Catalogue", "${vm.channels.size} chaînes · ${vm.movies.size} films · ${vm.series.size} séries")
     Spacer(Modifier.height(4.dp))
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

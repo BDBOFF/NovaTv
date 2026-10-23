@@ -25,6 +25,9 @@ class Storage(context: Context) {
         private set
     var activeId by mutableStateOf(prefs.getString("active", null))
         private set
+    /** Prévenu à chaque changement local (sert à la synchronisation entre appareils). */
+    var onChange: ((SyncChange) -> Unit)? = null
+
     var favorites by mutableStateOf(read<List<Fav>>("favs") ?: emptyList())
         private set
     var history by mutableStateOf(read<List<History>>("history") ?: emptyList())
@@ -110,7 +113,9 @@ class Storage(context: Context) {
         favorites.any { it.accountId == accountId && it.kind == kind && it.id == id }
 
     fun toggleFav(f: Fav) {
-        favorites = if (isFav(f.accountId, f.kind, f.id)) {
+        val removing = isFav(f.accountId, f.kind, f.id)
+        onChange?.invoke(if (removing) SyncChange.FavRemoved(f.kind, f.id) else SyncChange.FavAdded(f))
+        favorites = if (removing) {
             favorites.filterNot { it.accountId == f.accountId && it.kind == f.kind && it.id == f.id }
         } else {
             listOf(f) + favorites
@@ -121,18 +126,71 @@ class Storage(context: Context) {
     // ---------------------------------------------------------- Historique
 
     fun saveHistory(h: History) {
+        onChange?.invoke(SyncChange.HistorySaved(h))
         history = (listOf(h) + history.filterNot { it.accountId == h.accountId && it.kind == h.kind && it.id == h.id })
             .take(400)
         write("history", history)
     }
 
     fun removeHistory(accountId: String, kind: String, id: Int) {
+        onChange?.invoke(SyncChange.HistoryRemoved(kind, id))
         history = history.filterNot { it.accountId == accountId && it.kind == kind && it.id == id }
         write("history", history)
     }
 
     fun clearHistory(accountId: String) {
+        onChange?.invoke(SyncChange.HistoryCleared)
         history = history.filterNot { it.accountId == accountId }
         write("history", history)
     }
+
+    // ---------------------------------------------------------- Fusion des données d'un autre appareil
+
+    /** Applique l'historique et les favoris reçus du cloud (sans re-déclencher la synchronisation). */
+    fun mergeRemote(
+        accountId: String,
+        remoteHistory: List<History>,
+        removedHistory: Map<String, Long>,
+        remoteFavs: List<Fav>,
+        removedFavs: Map<String, Long>,
+    ) {
+        fun k(kind: String, id: Int) = "${kind}_$id"
+        // Historique : la version la plus récente gagne
+        val mine = history.filter { it.accountId == accountId }.associateBy { k(it.kind, it.id) }.toMutableMap()
+        for (r in remoteHistory) {
+            val key = k(r.kind, r.id)
+            val local = mine[key]
+            if (local == null || r.updatedAt > local.updatedAt) mine[key] = r.copy(accountId = accountId)
+        }
+        for ((key, at) in removedHistory) {
+            val local = mine[key]
+            if (local != null && at >= local.updatedAt) mine.remove(key)
+        }
+        history = (history.filter { it.accountId != accountId } + mine.values)
+            .sortedByDescending { it.updatedAt }.take(400)
+        write("history", history)
+
+        // Favoris
+        val favs = favorites.filter { it.accountId == accountId }.associateBy { k(it.kind, it.id) }.toMutableMap()
+        for (r in remoteFavs) {
+            val key = k(r.kind, r.id)
+            val removedAt = removedFavs[key] ?: 0L
+            if (!favs.containsKey(key) && r.addedAt > removedAt) favs[key] = r.copy(accountId = accountId)
+        }
+        for ((key, at) in removedFavs) {
+            val local = favs[key]
+            if (local != null && at > local.addedAt) favs.remove(key)
+        }
+        favorites = favorites.filter { it.accountId != accountId } + favs.values.sortedByDescending { it.addedAt }
+        write("favs", favorites)
+    }
+}
+
+/** Changement local à envoyer aux autres appareils. */
+sealed interface SyncChange {
+    data class HistorySaved(val h: History) : SyncChange
+    data class HistoryRemoved(val kind: String, val id: Int) : SyncChange
+    data object HistoryCleared : SyncChange
+    data class FavAdded(val f: Fav) : SyncChange
+    data class FavRemoved(val kind: String, val id: Int) : SyncChange
 }

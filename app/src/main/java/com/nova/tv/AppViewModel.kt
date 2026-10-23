@@ -58,6 +58,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val storage = Storage(app)
     val license = com.nova.tv.data.LicenseManager(app)
     var showLicense by mutableStateOf(false)
+    val sync = com.nova.tv.data.SyncManager(storage, viewModelScope)
     val focus = FocusMemory()
 
     // ------------------------------------------------------------- Navigation
@@ -359,6 +360,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             replaceAll(Route.Main)
             viewModelScope.launch { loadTrending() }
             checkUpdate()
+            sync.attach(acc)
             viewModelScope.launch { license.revalidateIfNeeded() }
             return null
         } catch (e: Exception) {

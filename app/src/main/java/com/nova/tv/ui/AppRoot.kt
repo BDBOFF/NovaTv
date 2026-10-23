@@ -93,6 +93,18 @@ fun AppRoot(vm: AppViewModel) {
                 is Route.Grid -> "grid_${route.mode}_${route.key}_${route.scope}"
                 is Route.TmdbDetail -> "tmdb_${route.kind}_${route.id}"
             }
+            val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+            androidx.compose.runtime.DisposableEffect(lifecycle) {
+                val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+                    when (e) {
+                        androidx.lifecycle.Lifecycle.Event.ON_START -> vm.sync.onForeground()
+                        androidx.lifecycle.Lifecycle.Event.ON_STOP -> vm.sync.onBackground()
+                        else -> {}
+                    }
+                }
+                lifecycle.addObserver(obs)
+                onDispose { lifecycle.removeObserver(obs) }
+            }
             LaunchedEffect(Unit) {
                 while (true) {
                     kotlinx.coroutines.delay(10 * 60 * 1000L)
