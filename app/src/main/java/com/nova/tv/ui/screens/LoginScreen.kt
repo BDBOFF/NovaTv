@@ -98,8 +98,19 @@ fun Wordmark(markSize: Int = 30, textStyle: TextStyle = Type.H2) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         BrandMark(markSize)
         Spacer(Modifier.width((markSize * 0.35f).dp))
-        Text("SAMOTH", style = textStyle.copy(fontWeight = FontWeight.Black), color = Color.White)
-        Text(" TV", style = textStyle.copy(fontWeight = FontWeight.Black), color = Nova.Accent)
+        // Un seul texte sur une ligne : "SAMOTH TV" ne se coupe jamais
+        Text(
+            androidx.compose.ui.text.buildAnnotatedString {
+                append("SAMOTH ")
+                pushStyle(androidx.compose.ui.text.SpanStyle(color = Nova.Accent))
+                append("TV")
+                pop()
+            },
+            style = textStyle.copy(fontWeight = FontWeight.Black),
+            color = Color.White,
+            maxLines = 1,
+            softWrap = false,
+        )
     }
 }
 
@@ -115,7 +126,8 @@ fun SplashScreen(vm: AppViewModel) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.alpha(a)) {
-                Wordmark(68, Type.Display.copy(fontSize = Type.Display.fontSize * 1.2f))
+                if (com.nova.tv.ui.LocalDevice.current.compact) Wordmark(44, Type.H1.copy(fontSize = Type.H1.fontSize * 1.15f))
+                else Wordmark(68, Type.Display.copy(fontSize = Type.Display.fontSize * 1.2f))
             }
             Spacer(Modifier.height(36.dp))
             Text(vm.loadingText.ifBlank { "Démarrage…" }, style = Type.Body, color = Nova.Muted)
