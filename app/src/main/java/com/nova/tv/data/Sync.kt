@@ -34,7 +34,7 @@ class SyncManager(private val storage: Storage, private val scope: CoroutineScop
 
     companion object {
         /** Adresse de la base Firebase (vide = synchronisation désactivée). */
-        const val DATABASE = ""
+        const val DATABASE = "https://samothtv-default-rtdb.europe-west1.firebasedatabase.app"
         private const val PULL_EVERY = 5 * 60 * 1000L
         private const val PUSH_DELAY = 20 * 1000L
     }
