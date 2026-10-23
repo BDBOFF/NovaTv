@@ -168,7 +168,7 @@ class LicenseManager(private val context: Context) {
         val last = prefs.getLong("lastOk", 0L)
         if (!force && System.currentTimeMillis() - last < CHECK_EVERY) return
         try {
-            val form = buildMap {
+            val form = buildMap<String, String> {
                 put("license_key", k)
                 prefs.getString("instance", null)?.let { put("instance_id", it) }
             }
