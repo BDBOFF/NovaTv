@@ -1,5 +1,8 @@
 package com.nova.tv.data
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -46,7 +49,7 @@ class SyncManager(private val storage: Storage, private val scope: CoroutineScop
     private var pushJob: Job? = null
     private var loop: Job? = null
 
-    var lastSync by androidx.compose.runtime.mutableLongStateOf(0L)
+    var lastSync by mutableLongStateOf(0L)
         private set
 
     init {
@@ -152,7 +155,7 @@ class SyncManager(private val storage: Storage, private val scope: CoroutineScop
             lastSync = System.currentTimeMillis()
         } catch (e: Exception) {
             // hors ligne : on remet en attente pour le prochain essai
-            synchronized(pending) { batch.forEach { (k, v) -> pending.putIfAbsent(k, v) } }
+            synchronized(pending) { batch.forEach { (k, v) -> if (!pending.containsKey(k)) pending[k] = v } }
         }
         Unit
     }
