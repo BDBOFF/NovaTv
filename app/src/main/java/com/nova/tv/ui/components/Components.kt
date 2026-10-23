@@ -1,5 +1,6 @@
 package com.nova.tv.ui.components
 
+import com.nova.tv.ui.Gutter
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -7,6 +8,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -88,6 +91,7 @@ val LocalScreenKey = staticCompositionLocalOf { "" }
  * Brique de base de toute l'interface TV : élément focalisable à la télécommande,
  * avec zoom, contour lumineux et mémorisation du focus.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FocusBox(
     onClick: () -> Unit,
@@ -105,7 +109,15 @@ fun FocusBox(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    val scale by animateFloatAsState(if (focused) focusedScale else 1f, tween(120), label = "focusScale")
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        when {
+            pressed -> 0.96f
+            focused -> focusedScale
+            else -> 1f
+        },
+        tween(120), label = "focusScale",
+    )
     val longState = remember { booleanArrayOf(false) }
     val onClickState by rememberUpdatedState(onClick)
     val onLongState by rememberUpdatedState(onLongClick)
@@ -159,7 +171,15 @@ fun FocusBox(
                     }
                 }
             )
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .then(
+                if (onLongClick != null) Modifier.combinedClickable(
+                    interactionSource = interaction,
+                    indication = null,
+                    onLongClick = onLongClick,
+                    onClick = onClick,
+                )
+                else Modifier.clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            )
     ) {
         content(focused)
     }
@@ -596,7 +616,7 @@ fun RailRow(
     channelInfo: @Composable (Tile) -> Pair<String?, Float?> = { null to null },
 ) {
     Column(Modifier.fillMaxWidth()) {
-        Text(rail.title, style = Type.H2, modifier = Modifier.padding(start = 48.dp, bottom = 10.dp))
+        Text(rail.title, style = Type.H2, modifier = Modifier.padding(start = Gutter, bottom = 10.dp))
         val h = when (rail.style) {
             RailStyle.POSTER, RailStyle.RANK -> CardSize.PosterH
             RailStyle.LANDSCAPE -> CardSize.LandH
@@ -605,7 +625,7 @@ fun RailRow(
             RailStyle.MATCH -> CardSize.LandH
         }
         EdgeScroll { LazyRow(
-            contentPadding = PaddingValues(horizontal = 48.dp, vertical = 10.dp),
+            contentPadding = PaddingValues(horizontal = Gutter, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(if (rail.style == RailStyle.RANK) 6.dp else 14.dp),
             modifier = Modifier.fillMaxWidth().height(h + 20.dp),
         ) {
@@ -652,7 +672,7 @@ fun PivotScroll(pivot: Dp = 0.dp, content: @Composable () -> Unit) {
 /** Remet le comportement standard (pour les rangées horizontales imbriquées). */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun EdgeScroll(edge: Dp = 48.dp, content: @Composable () -> Unit) {
+fun EdgeScroll(edge: Dp = Gutter, content: @Composable () -> Unit) {
     val px = with(LocalDensity.current) { edge.toPx() }
     val spec = remember(px) {
         object : BringIntoViewSpec {

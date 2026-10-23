@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.nova.tv.ui.screens
 
 import android.widget.Toast
@@ -6,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -54,21 +57,16 @@ private enum class Section(val label: String) {
 @Composable
 fun SettingsScreen(vm: AppViewModel) {
     var section by rememberSaveable { mutableStateOf(Section.ACCOUNT) }
-    Row(Modifier.fillMaxSize().padding(top = 8.dp)) {
-        Column(
-            Modifier.width(250.dp).fillMaxHeight().padding(start = 36.dp, end = 8.dp, top = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Section.entries.forEach { s ->
-                CategoryItem(CatEntry(s.name, s.label, -1), section == s) { section = s }
-            }
-        }
+    val compact = com.nova.tv.ui.LocalDevice.current.compact
+    CategoryLayout(
+        Section.entries.map { CatEntry(it.name, it.label, -1) }, section.name, { section = Section.valueOf(it) }, 250.dp,
+    ) {
         Column(
             Modifier
                 .weight(1f)
-                .fillMaxHeight()
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 24.dp, end = 64.dp, top = 8.dp, bottom = 60.dp),
+                .padding(start = if (compact) 16.dp else 24.dp, end = if (compact) 16.dp else 64.dp, top = 8.dp, bottom = 60.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(section.label, style = Type.H1)
@@ -139,7 +137,7 @@ private fun ChoiceRow(label: String, options: List<Pair<String, String>>, curren
     ) {
         Text(label, style = Type.H3)
         Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             options.forEach { (value, text) -> Chip(text, value == current) { onSelect(value) } }
         }
     }
@@ -164,7 +162,7 @@ private fun AccountSection(vm: AppViewModel) {
     }
     InfoRow("Catalogue", "${vm.channels.size} chaînes · ${vm.movies.size} films · ${vm.series.size} séries")
     Spacer(Modifier.height(4.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         NovaButton("Actualiser le catalogue", onClick = { vm.refresh() }, primary = true)
         NovaButton("Se déconnecter", onClick = { vm.logout() })
     }
@@ -241,7 +239,7 @@ private fun MetadataSection(vm: AppViewModel) {
     )
     InfoRow("État", if (vm.storage.tmdbKey.isBlank()) "Non configuré" else "Activé", if (vm.storage.tmdbKey.isBlank()) Nova.Gold else Nova.Green)
     TvTextField("Clé TMDB", key, { key = it }, placeholder = "Collez votre clé ici", imeAction = ImeAction.Done)
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         NovaButton("Enregistrer", onClick = {
             vm.storage.tmdbKey = key
             Toast.makeText(context, "Clé enregistrée. Actualisation…", Toast.LENGTH_SHORT).show()
@@ -260,7 +258,7 @@ private fun AdvancedSection(vm: AppViewModel) {
         style = Type.Body, color = Nova.Muted,
     )
     TvTextField("User-Agent", ua, { ua = it }, imeAction = ImeAction.Done)
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         NovaButton("Enregistrer", onClick = {
             vm.storage.userAgent = ua
             Toast.makeText(context, "User-Agent enregistré", Toast.LENGTH_SHORT).show()
@@ -293,7 +291,7 @@ private fun AboutSection(vm: AppViewModel) {
         if (up != null) Nova.Accent else Nova.Green,
     )
     vm.updateMessage?.let { Text(it, style = Type.Small, color = Nova.Gold) }
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (up != null) NovaButton("Installer la mise à jour", onClick = { vm.installUpdate() }, primary = true)
         NovaButton("Vérifier", onClick = { vm.checkUpdate() })
     }

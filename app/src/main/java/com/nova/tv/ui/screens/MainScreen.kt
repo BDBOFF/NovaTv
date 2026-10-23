@@ -1,5 +1,6 @@
 package com.nova.tv.ui.screens
 
+import com.nova.tv.ui.Gutter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.fillMaxHeight
+import com.nova.tv.ui.LocalDevice
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -71,6 +80,11 @@ fun MainScreen(vm: AppViewModel) {
         memory.pending.clear()
     }
 
+    if (LocalDevice.current.compact) {
+        MobileMain(vm)
+        return
+    }
+
     Box(Modifier.fillMaxSize().background(Nova.Bg)) {
         CompositionLocalProvider(LocalScreenKey provides screenKey(vm.tab)) {
             when (vm.tab) {
@@ -102,7 +116,7 @@ private fun TopBar(vm: AppViewModel, requesters: Map<MainTab, FocusRequester>) {
             .fillMaxWidth()
             .height(64.dp)
             .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.85f), Color.Transparent)))
-            .padding(horizontal = 48.dp),
+            .padding(horizontal = Gutter),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Wordmark(28, Type.H2)
@@ -198,5 +212,79 @@ private fun UpdatePill(vm: AppViewModel) {
                 color = if (focused) Color.Black else Color.White,
             )
         }
+    }
+}
+
+// =============================================================================== Mobile
+
+/** Disposition téléphone : en-tête compact + contenu + barre d'onglets en bas. */
+@Composable
+private fun MobileMain(vm: AppViewModel) {
+    Column(Modifier.fillMaxSize().background(Nova.Bg)) {
+        Row(
+            Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Wordmark(26, Type.H2)
+            Spacer(Modifier.weight(1f))
+            if (vm.update != null) {
+                UpdatePill(vm)
+                Spacer(Modifier.width(6.dp))
+            }
+            MobileIcon(Icons.Filled.Search, vm.tab == MainTab.SEARCH) { vm.tab = MainTab.SEARCH }
+            MobileIcon(Icons.Filled.Settings, vm.tab == MainTab.SETTINGS) { vm.tab = MainTab.SETTINGS }
+        }
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            CompositionLocalProvider(LocalScreenKey provides screenKey(vm.tab)) {
+                when (vm.tab) {
+                    MainTab.HOME -> BrowseScreen(vm, Scope.ALL)
+                    MainTab.MOVIES -> BrowseScreen(vm, Scope.MOVIES)
+                    MainTab.SERIES -> BrowseScreen(vm, Scope.SERIES)
+                    MainTab.LIVE -> LiveHomeScreen(vm)
+                    MainTab.GUIDE -> GuideScreen(vm)
+                    MainTab.SEARCH -> SearchScreen(vm)
+                    MainTab.SETTINGS -> SettingsScreen(vm)
+                }
+            }
+        }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .background(Nova.Surface)
+                .height(60.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            listOf(
+                Triple(MainTab.HOME, Icons.Filled.Home, "Accueil"),
+                Triple(MainTab.MOVIES, Icons.Filled.Star, "Films"),
+                Triple(MainTab.SERIES, Icons.Filled.List, "Séries"),
+                Triple(MainTab.LIVE, Icons.Filled.PlayArrow, "TV"),
+                Triple(MainTab.GUIDE, Icons.Filled.DateRange, "Guide"),
+            ).forEach { (tab, icon, label) ->
+                val sel = vm.tab == tab
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable { vm.tab = tab },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Icon(icon, label, tint = if (sel) Nova.Accent else Nova.Muted, modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.height(3.dp))
+                    Text(label, style = Type.Small, color = if (sel) Color.White else Nova.Muted)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MobileIcon(icon: ImageVector, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.size(42.dp).clip(RoundedCornerShape(50)).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, null, tint = if (selected) Nova.Accent else Color.White, modifier = Modifier.size(22.dp))
     }
 }

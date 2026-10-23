@@ -1,9 +1,13 @@
 package com.nova.tv.ui.screens
 
+import com.nova.tv.ui.Gutter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.lazy.LazyRow
+import com.nova.tv.ui.LocalDevice
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -111,16 +115,11 @@ fun CatalogScreen(vm: AppViewModel, type: ContentType) {
 
     val firstItem = remember { FocusRequester() }
     val context = androidx.compose.ui.platform.LocalContext.current
-    Row(Modifier.fillMaxSize().padding(top = 8.dp)) {
-        CategoryColumn(
-            entries = cats,
-            selected = selected,
-            onSelect = { vm.selection[type] = it },
-            width = 250.dp,
-        )
-        Column(Modifier.weight(1f).fillMaxHeight()) {
+    val compact = LocalDevice.current.compact
+    val side = if (compact) Gutter else 24.dp
+    CategoryLayout(cats, selected, { vm.selection[type] = it }, 250.dp) {
             Row(
-                Modifier.fillMaxWidth().padding(start = 24.dp, end = 48.dp, bottom = 6.dp),
+                Modifier.fillMaxWidth().padding(start = side, end = Gutter, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 val title = cats.firstOrNull { it.id == selected }?.name ?: if (isMovie) "Films" else "Séries"
@@ -128,7 +127,9 @@ fun CatalogScreen(vm: AppViewModel, type: ContentType) {
                     Text(title, style = Type.H1, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text("${tiles?.size ?: 0} titres", style = Type.Small, color = Nova.Muted)
                 }
-                SortMode.entries.forEach { m ->
+                if (compact) {
+                    Chip("Tri : ${sort.label}", true) { sort = SortMode.entries[(sort.ordinal + 1) % SortMode.entries.size] }
+                } else SortMode.entries.forEach { m ->
                     Chip(m.label, sort == m) { sort = m }
                     Spacer(Modifier.width(8.dp))
                 }
@@ -147,10 +148,10 @@ fun CatalogScreen(vm: AppViewModel, type: ContentType) {
                     if (screen.startsWith("catalog_")) RequestInitialFocus(screen, firstItem)
                     PivotScroll(pivot = 16.dp) {
                         LazyVerticalGrid(
-                            columns = GridCells.Fixed(6),
+                            columns = if (LocalDevice.current.isTv) GridCells.Fixed(6) else GridCells.Adaptive(104.dp),
                             state = gridState,
-                            contentPadding = PaddingValues(start = 24.dp, end = 48.dp, top = 12.dp, bottom = 80.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(start = side, end = Gutter, top = 12.dp, bottom = 80.dp),
+                            horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 16.dp),
                             verticalArrangement = Arrangement.spacedBy(18.dp),
                             modifier = Modifier.fillMaxSize(),
                         ) {
@@ -168,6 +169,40 @@ fun CatalogScreen(vm: AppViewModel, type: ContentType) {
                     }
                 }
             }
+    }
+}
+
+/** Catégories à gauche (TV, tablette) ou en bandeau défilant en haut (téléphone). */
+@Composable
+fun CategoryLayout(
+    entries: List<CatEntry>,
+    selected: String,
+    onSelect: (String) -> Unit,
+    width: Dp,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    if (LocalDevice.current.compact) {
+        Column(Modifier.fillMaxSize().padding(top = 4.dp)) {
+            val state = rememberLazyListState()
+            LaunchedEffect(Unit) {
+                val idx = entries.indexOfFirst { it.id == selected }
+                if (idx > 1) state.scrollToItem(idx - 1)
+            }
+            LazyRow(
+                state = state,
+                contentPadding = PaddingValues(horizontal = Gutter, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(entries, key = { it.id }) { e ->
+                    Chip(if (e.count >= 0) "${e.name} · ${e.count}" else e.name, e.id == selected) { onSelect(e.id) }
+                }
+            }
+            content()
+        }
+    } else {
+        Row(Modifier.fillMaxSize().padding(top = 8.dp)) {
+            CategoryColumn(entries, selected, onSelect, width)
+            Column(Modifier.weight(1f).fillMaxHeight()) { content() }
         }
     }
 }

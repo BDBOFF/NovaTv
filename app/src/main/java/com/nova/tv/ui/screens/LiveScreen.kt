@@ -1,5 +1,6 @@
 package com.nova.tv.ui.screens
 
+import com.nova.tv.ui.Gutter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -88,10 +89,10 @@ fun LiveScreen(vm: AppViewModel) {
     val now = rememberNow()
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    Row(Modifier.fillMaxSize().padding(top = 8.dp)) {
-        CategoryColumn(cats, selected, { vm.selection[ContentType.LIVE] = it }, 270.dp)
-        Column(Modifier.weight(1f).fillMaxHeight()) {
-            Row(Modifier.padding(start = 24.dp, end = 48.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+    val compact = com.nova.tv.ui.LocalDevice.current.compact
+    val side = if (compact) Gutter else 24.dp
+    CategoryLayout(cats, selected, { vm.selection[ContentType.LIVE] = it }, 270.dp) {
+            Row(Modifier.padding(start = side, end = Gutter, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(cats.firstOrNull { it.id == selected }?.name ?: "TV Direct", style = Type.H1, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text("${list.size} chaînes", style = Type.Small, color = Nova.Muted)
@@ -108,9 +109,9 @@ fun LiveScreen(vm: AppViewModel) {
                 LaunchedEffect(selected) { gridState.scrollToItem(0) }
                 PivotScroll(pivot = 16.dp) {
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
+                        columns = if (com.nova.tv.ui.LocalDevice.current.isTv) GridCells.Fixed(3) else GridCells.Adaptive(300.dp),
                         state = gridState,
-                        contentPadding = PaddingValues(start = 24.dp, end = 48.dp, top = 12.dp, bottom = 80.dp),
+                        contentPadding = PaddingValues(start = side, end = Gutter, top = 12.dp, bottom = 80.dp),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                         modifier = Modifier.fillMaxSize(),
@@ -121,7 +122,6 @@ fun LiveScreen(vm: AppViewModel) {
                     }
                 }
             }
-        }
     }
 }
 

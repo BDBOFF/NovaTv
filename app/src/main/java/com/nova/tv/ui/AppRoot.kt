@@ -15,6 +15,8 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.safeDrawingPadding
 import com.nova.tv.AppViewModel
 import com.nova.tv.player.PlayerScreen
 import com.nova.tv.ui.components.LocalFocusMemory
@@ -40,6 +42,10 @@ fun AppRoot(vm: AppViewModel) {
     val holder = rememberSaveableStateHolder()
     val context = LocalContext.current
     var lastBack by remember { mutableLongStateOf(0L) }
+    val isTv = remember { isTvDevice(context) }
+    val config = LocalConfiguration.current
+    val compact = !isTv && (config.screenWidthDp < 600 || config.screenHeightDp < 480)
+    val device = DeviceInfo(isTv = isTv, compact = compact)
 
     BackHandler(enabled = route !is Route.Player) {
         if (vm.back()) return@BackHandler
@@ -48,7 +54,7 @@ fun AppRoot(vm: AppViewModel) {
             vm.focusTabsRequest++
             return@BackHandler
         }
-        if (route == Route.Main && !vm.tabBarFocused) {
+        if (isTv && route == Route.Main && !vm.tabBarFocused) {
             vm.focusTabsRequest++
             return@BackHandler
         }
@@ -63,9 +69,16 @@ fun AppRoot(vm: AppViewModel) {
 
     CompositionLocalProvider(
         LocalFocusMemory provides vm.focus,
+        LocalDevice provides device,
+        LocalGutter provides (if (isTv) 48.dp else if (compact) 16.dp else 32.dp),
         LocalRankStyle provides (runCatching { RankStyle.valueOf(vm.storage.rankStyle) }.getOrNull() ?: RankStyle.NEON),
     ) {
-        Box(Modifier.fillMaxSize().background(Nova.Bg)) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Nova.Bg)
+                .then(if (!isTv && route !is Route.Player) Modifier.safeDrawingPadding() else Modifier)
+        ) {
             val key = when (route) {
                 Route.Splash -> "splash"
                 Route.Login -> "login"

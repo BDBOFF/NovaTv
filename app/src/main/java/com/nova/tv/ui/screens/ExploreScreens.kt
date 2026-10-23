@@ -1,5 +1,7 @@
 package com.nova.tv.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
+import com.nova.tv.ui.Gutter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,8 +50,8 @@ private fun PosterGrid(vm: AppViewModel, tiles: List<Tile>, first: FocusRequeste
     val context = LocalContext.current
     PivotScroll(pivot = 16.dp) {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(columns),
-            contentPadding = PaddingValues(start = 48.dp, end = 48.dp, top = 12.dp, bottom = 80.dp),
+            columns = if (com.nova.tv.ui.LocalDevice.current.isTv) GridCells.Fixed(columns) else GridCells.Adaptive(104.dp),
+            contentPadding = PaddingValues(start = Gutter, end = Gutter, top = 12.dp, bottom = 80.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
             modifier = Modifier.fillMaxSize(),
@@ -80,7 +82,7 @@ fun GridScreen(vm: AppViewModel, mode: String, key: String, scope: Scope, title:
     }
     CompositionLocalProvider(LocalScreenKey provides screen) {
         Column(Modifier.fillMaxSize().background(Nova.Bg).padding(top = 36.dp)) {
-            Column(Modifier.padding(horizontal = 48.dp)) {
+            Column(Modifier.padding(horizontal = Gutter)) {
                 Text(title, style = Type.Display)
                 val scopeLabel = when (scope) {
                     Scope.MOVIES -> "Films"
@@ -134,7 +136,7 @@ fun SagaScreen(vm: AppViewModel, id: Int) {
             )
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.Transparent, 0.38f to Nova.Bg.copy(alpha = 0.7f), 0.55f to Nova.Bg)))
             Column(Modifier.fillMaxSize().padding(top = 48.dp)) {
-                Column(Modifier.padding(horizontal = 48.dp).width(560.dp)) {
+                Column(Modifier.padding(horizontal = Gutter).widthIn(max = 560.dp)) {
                     Text("SAGA", style = Type.Label, color = Nova.Accent)
                     Spacer(Modifier.height(4.dp))
                     Text(saga.name, style = Type.Display, maxLines = 2, overflow = TextOverflow.Ellipsis)

@@ -1,5 +1,7 @@
 package com.nova.tv.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
+import com.nova.tv.ui.Gutter
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,14 +46,14 @@ fun SearchScreen(vm: AppViewModel) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.padding(horizontal = 48.dp, vertical = 8.dp)) {
+        Column(Modifier.padding(horizontal = Gutter, vertical = 8.dp)) {
             TvTextField(
                 label = "Rechercher",
                 value = query,
                 onChange = { query = it },
                 placeholder = "Un film, une série, une chaîne…",
                 imeAction = ImeAction.Search,
-                modifier = Modifier.width(520.dp),
+                modifier = Modifier.widthIn(max = 520.dp),
             )
         }
         val r = result
@@ -94,7 +96,7 @@ fun SearchScreen(vm: AppViewModel) {
 
 @Composable
 private fun SearchHint() {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 48.dp, vertical = 30.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = Gutter, vertical = 30.dp)) {
         Text("Que voulez-vous regarder ?", style = Type.H1)
         Spacer(Modifier.height(8.dp))
         Text(

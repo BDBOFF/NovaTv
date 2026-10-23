@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.nova.tv.ui.screens
 
+import com.nova.tv.ui.Gutter
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -8,9 +11,11 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -83,6 +88,19 @@ import kotlinx.coroutines.delay
 
 @Composable
 private fun DetailBackground(url: String?) {
+    if (com.nova.tv.ui.LocalDevice.current.compact) {
+        // Téléphone : image pleine largeur en haut, fondu vers le bas
+        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
+            if (url != null) {
+                AsyncImage(
+                    model = url, contentDescription = null, contentScale = ContentScale.Crop,
+                    alignment = Alignment.TopCenter, modifier = Modifier.fillMaxSize(),
+                )
+            }
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Nova.Bg)))
+        }
+        return
+    }
     Box(Modifier.fillMaxSize()) {
         if (url != null) {
             AsyncImage(
@@ -106,6 +124,14 @@ private fun DetailBackground(url: String?) {
             )
         )
     }
+}
+
+/** Décalage du contenu des fiches : sous l'image sur téléphone. */
+@Composable
+private fun detailTop(): androidx.compose.ui.unit.Dp {
+    if (!com.nova.tv.ui.LocalDevice.current.compact) return 56.dp
+    val w = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
+    return (w * 9 / 16 - 48).coerceAtLeast(40).dp
 }
 
 @Composable
@@ -132,7 +158,7 @@ private fun InfoBlock(d: Details?, loading: Boolean) {
     when {
         d?.plot != null -> Text(
             d.plot, style = Type.Body, color = Nova.Text.copy(alpha = 0.85f),
-            maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(560.dp),
+            maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 560.dp),
         )
         loading -> CircularProgressIndicator(color = Nova.Accent, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
     }
@@ -143,7 +169,7 @@ private fun InfoBlock(d: Details?, loading: Boolean) {
     if (credits.isNotEmpty()) {
         Spacer(Modifier.height(10.dp))
         credits.forEach {
-            Text(it, style = Type.Small, color = Nova.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(560.dp))
+            Text(it, style = Type.Small, color = Nova.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 560.dp))
         }
     }
 }
@@ -152,10 +178,10 @@ private fun InfoBlock(d: Details?, loading: Boolean) {
 private fun CastRow(cast: List<CastMember>) {
     if (cast.isEmpty()) return
     Column {
-        Text("Distribution", style = Type.H2, modifier = Modifier.padding(start = 48.dp, bottom = 10.dp))
+        Text("Distribution", style = Type.H2, modifier = Modifier.padding(start = Gutter, bottom = 10.dp))
         EdgeScroll {
             LazyRow(
-                contentPadding = PaddingValues(horizontal = 48.dp, vertical = 8.dp),
+                contentPadding = PaddingValues(horizontal = Gutter, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 items(cast, key = { it.name + (it.role ?: "") }) { c ->
@@ -231,11 +257,11 @@ fun MovieDetailScreen(vm: AppViewModel, id: Int) {
         Box(Modifier.fillMaxSize()) {
             DetailBackground(d?.backdrop ?: movie.poster)
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                Column(Modifier.padding(start = 48.dp, top = 56.dp, end = 48.dp)) {
+                Column(Modifier.padding(start = Gutter, top = detailTop(), end = Gutter)) {
                     TitleBlock(movie.title, d)
                     InfoBlock(d, loading)
                     Spacer(Modifier.height(22.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         NovaButton(
                             if (resume != null) "Reprendre" else "Lecture",
                             onClick = { vm.playMovie(movie) },
@@ -327,7 +353,7 @@ fun SeriesDetailScreen(vm: AppViewModel, id: Int) {
         Box(Modifier.fillMaxSize()) {
             DetailBackground(d?.backdrop ?: series.backdrop ?: series.cover)
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                Column(Modifier.padding(start = 48.dp, top = 56.dp, end = 48.dp)) {
+                Column(Modifier.padding(start = Gutter, top = detailTop(), end = Gutter)) {
                     TitleBlock(series.title, d)
                     InfoBlock(d, d == null)
                     if (c != null && c.seasons.isNotEmpty()) {
@@ -338,7 +364,7 @@ fun SeriesDetailScreen(vm: AppViewModel, id: Int) {
                         )
                     }
                     Spacer(Modifier.height(22.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         val resumeSame = last != null && target != null && last.id == target.id && last.progress < 0.94f
                         val label = when {
                             target == null -> "Lecture"
@@ -374,7 +400,7 @@ fun SeriesDetailScreen(vm: AppViewModel, id: Int) {
                     // ---------------------------------------------- Saisons
                     EdgeScroll {
                         LazyRow(
-                            contentPadding = PaddingValues(horizontal = 48.dp, vertical = 6.dp),
+                            contentPadding = PaddingValues(horizontal = Gutter, vertical = 6.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             items(c.seasons, key = { it }) { s ->
@@ -386,7 +412,7 @@ fun SeriesDetailScreen(vm: AppViewModel, id: Int) {
                     // ---------------------------------------------- Épisodes
                     EdgeScroll {
                         LazyRow(
-                            contentPadding = PaddingValues(horizontal = 48.dp, vertical = 10.dp),
+                            contentPadding = PaddingValues(horizontal = Gutter, vertical = 10.dp),
                             horizontalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
                             items(episodes, key = { it.id }) { ep ->
@@ -400,11 +426,11 @@ fun SeriesDetailScreen(vm: AppViewModel, id: Int) {
                         }
                     }
                     val fe = focusedEp?.takeIf { it.season == season }
-                    Column(Modifier.padding(horizontal = 48.dp).height(58.dp)) {
+                    Column(Modifier.padding(horizontal = Gutter).height(58.dp)) {
                         if (fe != null) {
                             Text("É${fe.number} · ${fe.title}", style = Type.H3, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             fe.plot?.let {
-                                Text(it, style = Type.Small, color = Nova.Muted, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(640.dp))
+                                Text(it, style = Type.Small, color = Nova.Muted, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 640.dp))
                             }
                         }
                     }
@@ -481,7 +507,7 @@ fun TmdbDetailScreen(vm: AppViewModel, kind: String, id: Int) {
         Box(Modifier.fillMaxSize()) {
             DetailBackground(shown?.backdrop ?: poster)
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                Column(Modifier.padding(start = 48.dp, top = 56.dp, end = 48.dp)) {
+                Column(Modifier.padding(start = Gutter, top = detailTop(), end = Gutter)) {
                     TitleBlock(title, shown)
                     InfoBlock(shown, details == null && vm.tmdb() != null)
                     Spacer(Modifier.height(18.dp))
@@ -496,7 +522,7 @@ fun TmdbDetailScreen(vm: AppViewModel, kind: String, id: Int) {
                         )
                     }
                     Spacer(Modifier.height(18.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         if (available != null) {
                             NovaButton(
                                 "Regarder",

@@ -1,5 +1,6 @@
 package com.nova.tv.ui.screens
 
+import com.nova.tv.ui.Gutter
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
@@ -113,6 +114,11 @@ fun BrowseScreen(vm: AppViewModel, scope: Scope) {
         vm.trendMovies, vm.trendSeries, vm.nowPlaying, vm.storage.showAdult, vm.exploreVersion,
     ) { vm.buildRails(scope) }
 
+    if (com.nova.tv.ui.LocalDevice.current.compact) {
+        MobileBrowse(vm, scope, rails)
+        return
+    }
+
     val featured: Tile? = remember(rails) {
         rails.firstOrNull()?.tiles?.firstOrNull { it.kind != Kind.LIVE }
     }
@@ -183,8 +189,8 @@ fun BrowseScreen(vm: AppViewModel, scope: Scope) {
             // ------------------------------------------------------------ Informations
             Column(
                 Modifier
-                    .padding(horizontal = 48.dp)
-                    .width(470.dp)
+                    .padding(horizontal = Gutter)
+                    .widthIn(max = 470.dp)
                     .height(240.dp)
             ) {
                 HeroInfo(current, details)

@@ -1,5 +1,7 @@
 package com.nova.tv.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
+import com.nova.tv.ui.Gutter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -72,6 +74,11 @@ fun LiveHomeScreen(vm: AppViewModel) {
         return
     }
 
+    if (com.nova.tv.ui.LocalDevice.current.compact) {
+        MobileLiveHome(vm, rails, now)
+        return
+    }
+
     val featured: Channel? = remember(rails) { rails.firstOrNull()?.tiles?.firstOrNull()?.channel }
     val ch: Channel? = if (heroFocused) featured else focused?.channel ?: featured
     LaunchedEffect(ch?.id) { ch?.let { vm.ensureEpg(it) } }
@@ -96,7 +103,7 @@ fun LiveHomeScreen(vm: AppViewModel) {
                 logo = ch?.logo,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 80.dp, end = 48.dp)
+                    .padding(top = 80.dp, end = Gutter)
                     .size(384.dp, 216.dp),
             )
         } else if (ch?.logo != null) {
@@ -114,7 +121,7 @@ fun LiveHomeScreen(vm: AppViewModel) {
         Column(Modifier.fillMaxSize()) {
             Spacer(Modifier.height(78.dp))
             // ------------------------------------------------ Aperçu de la chaîne
-            Column(Modifier.padding(horizontal = 48.dp).width(470.dp).height(240.dp)) {
+            Column(Modifier.padding(horizontal = Gutter).widthIn(max = 470.dp).height(240.dp)) {
                 if (ch != null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Badge("EN DIRECT")

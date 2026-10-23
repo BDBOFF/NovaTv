@@ -1,5 +1,6 @@
 package com.nova.tv.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -223,7 +224,9 @@ fun LoginScreen(vm: AppViewModel) {
         scope.launch { vm.addAccount(name, server, user, pass) }
     }
 
+    val compact = com.nova.tv.ui.LocalDevice.current.compact
     Row(Modifier.fillMaxSize().background(Nova.Bg)) {
+        if (!compact) {
         // ------- Panneau de marque
         Box(
             Modifier
@@ -247,7 +250,7 @@ fun LoginScreen(vm: AppViewModel) {
                 Text(
                     "Connectez votre abonnement Xtream Codes : films, séries, chaînes en direct et guide TV, " +
                         "avec affiches et fiches détaillées.",
-                    style = Type.Body, color = Nova.Muted, modifier = Modifier.width(380.dp),
+                    style = Type.Body, color = Nova.Muted, modifier = Modifier.widthIn(max = 380.dp),
                 )
             }
             Text(
@@ -256,15 +259,20 @@ fun LoginScreen(vm: AppViewModel) {
             )
         }
 
+        }
         // ------- Formulaire
         Column(
             Modifier
                 .weight(1f)
                 .fillMaxHeight()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 56.dp, vertical = 40.dp),
+                .padding(horizontal = if (compact) 20.dp else 56.dp, vertical = if (compact) 24.dp else 40.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            if (compact) {
+                Wordmark(36, Type.H1)
+                Spacer(Modifier.height(10.dp))
+            }
             Text("Ajouter une playlist", style = Type.H1)
             TvTextField(
                 "Adresse du serveur", server, ::onServerChange,

@@ -1,7 +1,10 @@
 package com.nova.tv.ui.screens
 
+import com.nova.tv.ui.Gutter
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -80,11 +83,18 @@ fun GuideScreen(vm: AppViewModel) {
         }
     }
 
+    val touch = com.nova.tv.ui.LocalDevice.current.touch
+    val compact = com.nova.tv.ui.LocalDevice.current.compact
+    val chCol = if (compact) 104.dp else ChannelCol
+    val hScroll = rememberScrollState()
+    val hScrollOrNull = if (touch) hScroll else null
+    val density = androidx.compose.ui.platform.LocalDensity.current
+
     Column(Modifier.fillMaxSize().padding(top = 4.dp)) {
         // ---------------------------------------------------------------- Catégories
         EdgeScroll {
             LazyRow(
-                contentPadding = PaddingValues(horizontal = 48.dp, vertical = 6.dp),
+                contentPadding = PaddingValues(horizontal = Gutter, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(cats, key = { it.id }) { c ->
@@ -93,7 +103,14 @@ fun GuideScreen(vm: AppViewModel) {
             }
         }
         // ---------------------------------------------------------------- Programme focalisé
-        Row(Modifier.fillMaxWidth().height(86.dp).padding(horizontal = 48.dp, vertical = 8.dp)) {
+        if (touch) Row(
+            Modifier.fillMaxWidth().padding(horizontal = Gutter, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Chip("◀ Plus tôt", false) { if (shift > -3) shift-- }
+            Chip("Maintenant", shift == 0) { shift = 0 }
+            Chip("Plus tard ▶", false) { if (shift < 6) shift++ }
+        } else Row(Modifier.fillMaxWidth().height(86.dp).padding(horizontal = Gutter, vertical = 8.dp)) {
             val f = focused
             Column(Modifier.weight(1f)) {
                 if (f != null) {
@@ -131,7 +148,12 @@ fun GuideScreen(vm: AppViewModel) {
             }
         }
         // ---------------------------------------------------------------- Échelle de temps
-        Row(Modifier.padding(start = 48.dp + ChannelCol, end = 24.dp).height(22.dp)) {
+        Row(
+            Modifier
+                .padding(start = Gutter + chCol, end = 24.dp)
+                .height(22.dp)
+                .then(if (touch) Modifier.horizontalScroll(hScroll) else Modifier)
+        ) {
             Box(Modifier.width(PerMin * SPAN_MIN).fillMaxHeight()) {
                 var t = windowStart
                 while (t < windowEnd) {
@@ -150,12 +172,12 @@ fun GuideScreen(vm: AppViewModel) {
             PivotScroll(pivot = 60.dp) {
                 LazyColumn(
                     state = state,
-                    contentPadding = PaddingValues(start = 48.dp, end = 24.dp, bottom = 80.dp, top = 4.dp),
+                    contentPadding = PaddingValues(start = Gutter, end = 24.dp, bottom = 80.dp, top = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     items(list, key = { it.id }) { ch ->
-                        GuideRow(vm, ch, windowStart, windowEnd, now,
+                        GuideRow(vm, ch, windowStart, windowEnd, now, chCol, hScrollOrNull,
                             onFocus = { p -> focused = ch to p },
                             onClick = { p -> onProgramClick(ch, p) })
                     }
@@ -163,8 +185,9 @@ fun GuideScreen(vm: AppViewModel) {
             }
             // Ligne "maintenant"
             if (now in windowStart until windowEnd) {
-                val x = 48.dp + ChannelCol + PerMin * ((now - windowStart) / 60000f)
-                Box(
+                val scrolled = with(density) { hScroll.value.toDp() }
+                val x = Gutter + chCol + PerMin * ((now - windowStart) / 60000f) - (if (touch) scrolled else 0.dp)
+                if (x >= Gutter + chCol) Box(
                     Modifier
                         .offset(x = x)
                         .width(2.dp)
@@ -183,6 +206,8 @@ private fun GuideRow(
     windowStart: Long,
     windowEnd: Long,
     now: Long,
+    chCol: Dp,
+    hScroll: androidx.compose.foundation.ScrollState?,
     onFocus: (EpgProgram?) -> Unit,
     onClick: (EpgProgram?) -> Unit,
 ) {
@@ -194,7 +219,7 @@ private fun GuideRow(
         FocusBox(
             onClick = { onClick(null) },
             onFocused = { onFocus(vm.nowPlaying(ch.id, now)) },
-            modifier = Modifier.width(ChannelCol - 8.dp).fillMaxHeight(),
+            modifier = Modifier.width(chCol - 8.dp).fillMaxHeight(),
             focusedScale = 1.03f,
             shape = RoundedCornerShape(8.dp),
             memoryKey = "g_ch_${ch.id}",
@@ -212,8 +237,12 @@ private fun GuideRow(
             }
         }
         Spacer(Modifier.width(8.dp))
-        // Programmes
-        Box(Modifier.width(PerMin * SPAN_MIN).fillMaxHeight()) {
+        // Programmes (défilement horizontal synchronisé sur écran tactile)
+        Box(
+            Modifier
+                .fillMaxHeight()
+                .then(if (hScroll != null) Modifier.weight(1f).horizontalScroll(hScroll) else Modifier)
+        ) { Box(Modifier.width(PerMin * SPAN_MIN).fillMaxHeight()) {
             if (programs.isEmpty()) {
                 ProgramCell(
                     title = if (vm.epg[ch.id] == null) "Chargement…" else "Programme non disponible",
@@ -237,7 +266,7 @@ private fun GuideRow(
                     }
                 }
             }
-        }
+        } }
     }
 }
 

@@ -1,6 +1,26 @@
 package com.nova.tv.player
 
 import android.view.ViewGroup
+import android.app.Activity
+import android.content.Context
+import android.content.pm.ActivityInfo
+import android.media.AudioManager
+import android.view.WindowManager
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import com.nova.tv.ui.LocalDevice
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -99,6 +119,9 @@ import com.nova.tv.ui.screens.rememberNow
 import kotlinx.coroutines.delay
 import java.util.Locale
 
+/** Action "quitter le lecteur" accessible aux bandeaux (bouton retour tactile). */
+private val LocalPlayerExit = staticCompositionLocalOf<() -> Unit> { {} }
+
 private enum class Panel { AUDIO, SUBS, CHANNELS, EPISODES }
 
 private data class TrackOption(
@@ -148,6 +171,31 @@ fun PlayerScreen(vm: AppViewModel, session: PlaySession) {
 
 
     val rootFocus = remember { FocusRequester() }
+    val device = LocalDevice.current
+    val activity = context as? Activity
+    var gestureHint by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(gestureHint) {
+        if (gestureHint != null) {
+            delay(900); gestureHint = null
+        }
+    }
+    // Téléphone / tablette : plein écran en paysage, barres système masquées
+    if (device.touch && activity != null) {
+        DisposableEffect(Unit) {
+            val previous = activity.requestedOrientation
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            val ctrl = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
+            ctrl.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            ctrl.hide(WindowInsetsCompat.Type.systemBars())
+            onDispose {
+                ctrl.show(WindowInsetsCompat.Type.navigationBars())
+                activity.requestedOrientation = previous
+                val lp = activity.window.attributes
+                lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                activity.window.attributes = lp
+            }
+        }
+    }
     val mainControl = remember { FocusRequester() }
     val now = rememberNow(20_000)
 
@@ -386,6 +434,72 @@ fun PlayerScreen(vm: AppViewModel, session: PlaySession) {
             modifier = Modifier.fillMaxSize(),
         )
 
+        // ------------------------------------------------------------------ Gestes tactiles
+        if (device.touch) {
+            val audio = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .pointerInput(isLive) {
+                        detectTapGestures(
+                            onTap = { if (overlay) overlay = false else showOverlay() },
+                            onDoubleTap = { o ->
+                                if (!isLive) {
+                                    val forward = o.x > size.width / 2
+                                    seekBy(if (forward) 10_000 else -10_000)
+                                    gestureHint = if (forward) "+10 s  ▶▶" else "◀◀  -10 s"
+                                } else showOverlay()
+                            },
+                        )
+                    }
+                    .pointerInput(Unit) {
+                        var left = true
+                        var acc = 0f
+                        detectVerticalDragGestures(
+                            onDragStart = { o -> left = o.x < size.width / 2; acc = 0f },
+                        ) { change, dy ->
+                            change.consume()
+                            val frac = -dy / size.height
+                            if (left && activity != null) {
+                                val lp = activity.window.attributes
+                                val cur = if (lp.screenBrightness < 0f) 0.5f else lp.screenBrightness
+                                val v = (cur + frac).coerceIn(0.02f, 1f)
+                                lp.screenBrightness = v
+                                activity.window.attributes = lp
+                                gestureHint = "Luminosité ${(v * 100).toInt()} %"
+                            } else {
+                                val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+                                acc += frac * max * 1.6f
+                                val steps = acc.toInt()
+                                if (steps != 0) {
+                                    acc -= steps
+                                    val v = (audio.getStreamVolume(AudioManager.STREAM_MUSIC) + steps).coerceIn(0, max)
+                                    audio.setStreamVolume(AudioManager.STREAM_MUSIC, v, 0)
+                                }
+                                gestureHint = "Volume ${audio.getStreamVolume(AudioManager.STREAM_MUSIC) * 100 / max} %"
+                            }
+                        }
+                    }
+                    .pointerInput(isLive) {
+                        if (!isLive) return@pointerInput
+                        var total = 0f
+                        detectHorizontalDragGestures(
+                            onDragStart = { total = 0f },
+                            onDragEnd = {
+                                val n = session.items.size
+                                if (n > 1) {
+                                    if (total < -140f) goTo((index + 1) % n)
+                                    else if (total > 140f) goTo((index - 1 + n) % n)
+                                }
+                            },
+                        ) { change, dx ->
+                            change.consume()
+                            total += dx
+                        }
+                    }
+            )
+        }
+
         if (buffering && error == null) {
             CircularProgressIndicator(
                 color = Nova.Accent, strokeWidth = 3.dp,
@@ -404,12 +518,22 @@ fun PlayerScreen(vm: AppViewModel, session: PlaySession) {
             )
         }
 
+        gestureHint?.let { hint ->
+            Box(
+                Modifier
+                    .align(Alignment.Center)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.Black.copy(alpha = 0.65f))
+                    .padding(horizontal = 22.dp, vertical = 12.dp)
+            ) { Text(hint, style = Type.H2, color = Color.White) }
+        }
+
         AnimatedVisibility(
             visible = overlay && error == null,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.fillMaxSize(),
-        ) {
+        ) { CompositionLocalProvider(LocalPlayerExit provides { exit() }) {
             if (isLive) {
                 LiveOverlay(
                     vm = vm, item = item, now = now, index = index, total = session.items.size,
@@ -441,9 +565,17 @@ fun PlayerScreen(vm: AppViewModel, session: PlaySession) {
                     onResize = { resizeIndex = (resizeIndex + 1) % resizeModes.size; touch() },
                     onFocusAny = { touch() },
                     onSkipIntro = { seekBy(85_000) },
+                    onSeekTo = { f ->
+                        if (duration > 0) {
+                            val t = (f.coerceIn(0f, 1f) * duration).toLong()
+                            seekPreview = t
+                            player.seekTo(t)
+                            showOverlay()
+                        }
+                    },
                 )
             }
-        }
+        } }
 
         // ------------------------------------------------------------------ Épisode suivant (fin d'épisode)
         if (nextCardVisible && nextItem != null) {
@@ -566,8 +698,16 @@ private fun TopInfo(title: String, subtitle: String?, now: Long, badge: String? 
             .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.85f), Color.Transparent)))
             .padding(start = 48.dp, end = 48.dp, top = 30.dp, bottom = 50.dp)
     ) {
-        Column(Modifier.align(Alignment.TopStart).width(640.dp)) {
+        Column(Modifier.align(Alignment.TopStart).padding(end = 70.dp).widthIn(max = 640.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (LocalDevice.current.touch) {
+                    val exitPlayer = LocalPlayerExit.current
+                    Box(
+                        Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.14f)).clickable { exitPlayer() },
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Filled.ArrowBack, "Retour", tint = Color.White, modifier = Modifier.size(22.dp)) }
+                    Spacer(Modifier.width(12.dp))
+                }
                 Text(title, style = Type.H1, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 badge?.let { Spacer(Modifier.width(10.dp)); Badge(it) }
             }
@@ -617,6 +757,7 @@ private fun SeekBar(
     onSeek: (Long) -> Unit,
     onFocus: () -> Unit,
     requester: FocusRequester,
+    onSeekTo: (Float) -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -646,6 +787,15 @@ private fun SeekBar(
                             onSeek(step); true
                         }
                         else -> false
+                    }
+                }
+                .pointerInput(duration) {
+                    detectTapGestures { o -> onSeekTo(o.x / size.width) }
+                }
+                .pointerInput(duration) {
+                    detectHorizontalDragGestures { change, _ ->
+                        change.consume()
+                        onSeekTo(change.position.x / size.width)
                     }
                 }
                 .focusable(interactionSource = interaction),
@@ -695,6 +845,7 @@ private fun VodOverlay(
     onResize: () -> Unit,
     onFocusAny: () -> Unit,
     onSkipIntro: () -> Unit,
+    onSeekTo: (Float) -> Unit,
 ) {
     Box(Modifier.fillMaxSize()) {
         TopInfo(item.title, item.subtitle, now)
@@ -709,9 +860,9 @@ private fun VodOverlay(
                 val endAt = now + (duration - position)
                 Text("Fin à ${formatClock(endAt)}", style = Type.Small, color = Nova.Muted, modifier = Modifier.padding(start = 76.dp, bottom = 4.dp))
             }
-            SeekBar(position, duration, onSeek, onFocusAny, mainControl)
+            SeekBar(position, duration, onSeek, onFocusAny, mainControl, onSeekTo)
             Spacer(Modifier.height(18.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 ControlButton("", onToggle, onFocusAny) { c -> if (isPlaying) PauseGlyph(c, 14.dp) else PlayGlyph(c, 14.dp) }
                 if (isEpisode && position in 0..300_000) {
                     ControlButton("Passer l'intro", onSkipIntro, onFocusAny) { c -> PlayGlyph(c, 12.dp) }
@@ -751,7 +902,11 @@ private fun LiveOverlay(
     val fav = ch != null && vm.isFav(Kind.LIVE, ch.id)
 
     Box(Modifier.fillMaxSize()) {
-        TopInfo(item.title, "Chaîne ${index + 1} / $total  ·  ▲▼ pour zapper", now, badge = "EN DIRECT")
+        TopInfo(
+            item.title,
+            "Chaîne ${index + 1} / $total  ·  " + if (LocalDevice.current.isTv) "▲▼ pour zapper" else "glissez ◀ ▶ pour zapper",
+            now, badge = "EN DIRECT",
+        )
         Column(
             Modifier
                 .align(Alignment.BottomCenter)
@@ -789,7 +944,7 @@ private fun LiveOverlay(
                 }
             }
             Spacer(Modifier.height(18.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ControlButton("Chaînes", onChannels, onFocusAny, mainControl) { c -> Icon(Icons.Filled.List, null, tint = c, modifier = Modifier.size(18.dp)) }
                 if (ch != null) {
                     ControlButton(if (fav) "Favori" else "Ajouter aux favoris", {
@@ -833,7 +988,7 @@ private fun NextEpisodeCard(
             Text("Épisode suivant dans $secondsLeft s", style = Type.Small, color = Nova.Accent)
             Text(next.subtitle, style = Type.H3, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ControlButton("Regarder", onPlay, {}, playFocus) { c -> PlayGlyph(c, 12.dp) }
                 ControlButton("Annuler", onCancel, {}) { }
             }
