@@ -142,9 +142,11 @@ fun TvTextField(
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val focusManager = LocalFocusManager.current
+    var visible by remember { mutableStateOf(false) }
     Column(modifier) {
         Text(label, style = Type.Small, color = if (focused) Nova.Text else Nova.Muted)
         Spacer(Modifier.height(6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
         BasicTextField(
             value = value,
             onValueChange = onChange,
@@ -152,7 +154,7 @@ fun TvTextField(
             textStyle = Type.H3.copy(color = Nova.Text),
             cursorBrush = SolidColor(Nova.Accent),
             interactionSource = interaction,
-            visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
+            visualTransformation = if (password && !visible) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
             keyboardActions = KeyboardActions(
                 onNext = { focusManager.moveFocus(FocusDirection.Down) },
@@ -160,7 +162,7 @@ fun TvTextField(
                 onSearch = { onDone() },
             ),
             modifier = Modifier
-                .fillMaxWidth()
+                .weight(1f)
                 .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
             decorationBox = { inner ->
                 Box(
@@ -182,6 +184,42 @@ fun TvTextField(
                 }
             },
         )
+        if (password) {
+            Spacer(Modifier.width(8.dp))
+            // Le petit œil : afficher / masquer le mot de passe
+            com.nova.tv.ui.components.FocusBox(
+                onClick = { visible = !visible },
+                shape = RoundedCornerShape(10.dp),
+                focusedScale = 1.06f,
+                borderWidth = 0.dp,
+                glow = false,
+                modifier = Modifier.size(46.dp),
+            ) { f ->
+                Box(Modifier.fillMaxSize().background(if (f) Color.White else Nova.Surface2), contentAlignment = Alignment.Center) {
+                    EyeIcon(open = visible, color = if (f) Color.Black else Nova.Muted)
+                }
+            }
+        }
+        }
+    }
+}
+
+/** Icône œil (barré quand le mot de passe est masqué). */
+@Composable
+private fun EyeIcon(open: Boolean, color: Color) {
+    androidx.compose.foundation.Canvas(Modifier.size(22.dp)) {
+        val w = size.width
+        val h = size.height
+        val stroke = androidx.compose.ui.graphics.drawscope.Stroke(width = w * 0.09f)
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(w * 0.04f, h * 0.5f)
+            quadraticBezierTo(w * 0.5f, h * 0.02f, w * 0.96f, h * 0.5f)
+            quadraticBezierTo(w * 0.5f, h * 0.98f, w * 0.04f, h * 0.5f)
+            close()
+        }
+        drawPath(path, color, style = stroke)
+        drawCircle(color, radius = w * 0.14f, center = androidx.compose.ui.geometry.Offset(w / 2, h / 2))
+        if (!open) drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.12f, h * 0.88f), androidx.compose.ui.geometry.Offset(w * 0.88f, h * 0.12f), strokeWidth = w * 0.09f)
     }
 }
 

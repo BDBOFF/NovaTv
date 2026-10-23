@@ -15,6 +15,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -78,6 +83,14 @@ fun AppRoot(vm: AppViewModel) {
             Modifier
                 .fillMaxSize()
                 .background(Nova.Bg)
+                .onPreviewKeyEvent { ev ->
+                    val ok = ev.key == Key.DirectionCenter || ev.key == Key.Enter || ev.key == Key.NumPadEnter
+                    if (ok && com.nova.tv.ui.components.LongPressGuard.active) {
+                        if (ev.type == KeyEventType.KeyUp) com.nova.tv.ui.components.LongPressGuard.active = false
+                        // on laisse passer les répétitions vers l'élément d'origine, mais pas vers le nouveau menu
+                        true
+                    } else false
+                }
                 .then(if (!isTv && route !is Route.Player) Modifier.safeDrawingPadding() else Modifier)
         ) {
             val key = when (route) {

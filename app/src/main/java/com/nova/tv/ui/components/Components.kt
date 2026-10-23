@@ -85,6 +85,12 @@ import java.util.Date
 import java.util.Locale
 
 val LocalFocusMemory = staticCompositionLocalOf { FocusMemory() }
+
+/** Après un appui long, on ignore OK jusqu'à ce que la touche soit relâchée. */
+object LongPressGuard {
+    @Volatile
+    var active = false
+}
 val LocalScreenKey = staticCompositionLocalOf { "" }
 
 /**
@@ -156,8 +162,11 @@ fun FocusBox(
                     if (k != Key.DirectionCenter && k != Key.Enter && k != Key.NumPadEnter) return@onPreviewKeyEvent false
                     when (ev.type) {
                         KeyEventType.KeyDown -> {
+                            if (ev.nativeKeyEvent.repeatCount == 0) longState[0] = false
                             if (ev.nativeKeyEvent.repeatCount >= 1 && !longState[0]) {
                                 longState[0] = true
+                                // le relâchement de OK ne doit pas valider ce qui s'ouvre ensuite
+                                LongPressGuard.active = true
                                 onLongState?.invoke()
                             }
                             true
