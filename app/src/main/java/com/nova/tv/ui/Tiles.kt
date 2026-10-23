@@ -46,6 +46,7 @@ enum class MainTab(val label: String) {
 sealed interface Route {
     data object Splash : Route
     data object Login : Route
+    data object Profiles : Route
     data object Main : Route
     data class MovieDetail(val id: Int) : Route
     data class SeriesDetail(val id: Int) : Route

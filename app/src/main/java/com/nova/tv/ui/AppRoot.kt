@@ -83,6 +83,7 @@ fun AppRoot(vm: AppViewModel) {
             val key = when (route) {
                 Route.Splash -> "splash"
                 Route.Login -> "login"
+                Route.Profiles -> "profiles"
                 Route.Main -> "main"
                 is Route.MovieDetail -> "movie_${route.id}"
                 is Route.SeriesDetail -> "series_${route.id}"
@@ -112,7 +113,7 @@ fun AppRoot(vm: AppViewModel) {
                 }
             }
             val locked = vm.license.state == com.nova.tv.data.LicenseManager.State.EXPIRED &&
-                route != Route.Splash && route != Route.Login
+                route != Route.Splash && route != Route.Login && route != Route.Profiles
             if (locked) {
                 com.nova.tv.ui.screens.LicenseScreen(vm, blocking = true)
             } else if (vm.showLicense) {
@@ -122,6 +123,7 @@ fun AppRoot(vm: AppViewModel) {
                 when (route) {
                     Route.Splash -> SplashScreen(vm)
                     Route.Login -> LoginScreen(vm)
+                    Route.Profiles -> com.nova.tv.ui.screens.ProfilesScreen(vm)
                     Route.Main -> MainScreen(vm)
                     is Route.MovieDetail -> MovieDetailScreen(vm, route.id)
                     is Route.SeriesDetail -> SeriesDetailScreen(vm, route.id)
@@ -137,6 +139,7 @@ fun AppRoot(vm: AppViewModel) {
                     }
                 }
             }
+            if (vm.busyWarning != null) com.nova.tv.ui.screens.BusyDialog(vm)
         }
     }
 }

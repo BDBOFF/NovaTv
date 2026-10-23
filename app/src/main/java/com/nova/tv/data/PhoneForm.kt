@@ -166,7 +166,7 @@ class PhoneForm(
                 <label for="m3u">Lien de la playlist (M3U, M3U8)</label><input id="m3u" name="m3u" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="http://exemple.com/playlist.m3u">
                 <label for="epg">Lien du guide TV XMLTV (facultatif)</label><input id="epg" name="epg" inputmode="url" autocapitalize="off" autocorrect="off">
               </div>
-              <label for="name">Nom de la playlist (facultatif)</label><input id="name" name="name" placeholder="Ma TV">
+              <label for="name">Nom du profil (facultatif)</label><input id="name" name="name" placeholder="Toma">
               <button type="submit">Envoyer à la TV</button>
             </form>
             <script>

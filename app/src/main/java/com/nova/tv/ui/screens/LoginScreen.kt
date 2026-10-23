@@ -366,7 +366,7 @@ fun LoginScreen(vm: AppViewModel) {
                 )
             }
             TvTextField(
-                "Nom de la playlist (facultatif)", name, { name = it },
+                "Nom du profil (facultatif)", name, { name = it },
                 placeholder = "Ma TV", imeAction = ImeAction.Done, onDone = { submit() },
             )
             val err = localError ?: vm.error

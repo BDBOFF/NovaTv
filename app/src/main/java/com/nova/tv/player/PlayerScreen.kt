@@ -279,6 +279,7 @@ fun PlayerScreen(vm: AppViewModel, session: PlaySession) {
         }
         player.addListener(listener)
         onDispose {
+            vm.onPlayerClosed()
             player.removeListener(listener)
             player.release()
         }

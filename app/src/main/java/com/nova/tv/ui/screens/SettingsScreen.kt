@@ -49,7 +49,7 @@ import com.nova.tv.ui.components.formatDate
 private enum class Section(val label: String) {
     ACCOUNT("Compte"),
     LICENSE("Licence"),
-    PLAYLISTS("Playlists"),
+    PLAYLISTS("Profils"),
     PLAYBACK("Lecture & affichage"),
     ADVANCED("Avancé"),
     ABOUT("Mise à jour & infos"),
@@ -151,7 +151,7 @@ private fun AccountSection(vm: AppViewModel) {
     if (acc == null) {
         Text("Aucun compte connecté.", style = Type.Body, color = Nova.Muted); return
     }
-    InfoRow("Playlist", acc.name)
+    InfoRow("Profil", acc.name)
     if (acc.type == "m3u") {
         InfoRow("Type", "Playlist M3U")
         InfoRow("Lien", acc.server.substringAfter("://").take(60))
@@ -185,7 +185,7 @@ private fun AccountSection(vm: AppViewModel) {
 
 @Composable
 private fun PlaylistsSection(vm: AppViewModel) {
-    Text("Basculez entre plusieurs abonnements Xtream Codes.", style = Type.Body, color = Nova.Muted)
+    Text("Un profil par abonnement IPTV. Chaque profil a sa propre reprise de lecture et ses favoris, synchronisés sur tous vos appareils.", style = Type.Body, color = Nova.Muted)
     vm.storage.accounts.forEach { acc ->
         val active = acc.id == vm.storage.activeId
         FocusBox(
@@ -208,7 +208,7 @@ private fun PlaylistsSection(vm: AppViewModel) {
             }
         }
     }
-    NovaButton("Ajouter une playlist", onClick = { vm.navigate(Route.Login) }, primary = true)
+    NovaButton("Ajouter un profil", onClick = { vm.navigate(Route.Login) }, primary = true)
 }
 
 @Composable

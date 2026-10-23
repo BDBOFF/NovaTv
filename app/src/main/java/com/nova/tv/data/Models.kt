@@ -13,6 +13,8 @@ data class Account(
     val type: String = "xtream",
     /** Guide TV XMLTV (listes M3U uniquement). */
     val epgUrl: String = "",
+    /** Couleur de l'avatar du profil. */
+    val avatar: Int = -1,
 )
 
 data class AccountInfo(

@@ -142,6 +142,7 @@ private fun TopBar(vm: AppViewModel, requesters: Map<MainTab, FocusRequester>) {
             UpdatePill(vm)
         }
         TrialPill(vm)
+        ProfileButton(vm)
         Spacer(Modifier.width(18.dp))
         Text(formatClock(now), style = Type.H3, color = Nova.Muted)
     }
@@ -233,6 +234,7 @@ private fun MobileMain(vm: AppViewModel) {
                 Spacer(Modifier.width(6.dp))
             }
             TrialPill(vm)
+            ProfileButton(vm)
             MobileIcon(Icons.Filled.Search, vm.tab == MainTab.SEARCH) { vm.tab = MainTab.SEARCH }
             MobileIcon(Icons.Filled.Settings, vm.tab == MainTab.SETTINGS) { vm.tab = MainTab.SETTINGS }
         }
@@ -320,4 +322,20 @@ private fun TrialPill(vm: AppViewModel) {
         }
     }
     Spacer(Modifier.width(6.dp))
+}
+
+/** Avatar du profil en cours : ouvre "Qui regarde ?". */
+@Composable
+private fun ProfileButton(vm: AppViewModel) {
+    val acc = vm.account ?: return
+    val index = vm.storage.accounts.indexOfFirst { it.id == acc.id }.coerceAtLeast(0)
+    Spacer(Modifier.width(8.dp))
+    FocusBox(
+        onClick = { vm.navigate(com.nova.tv.ui.Route.Profiles) },
+        shape = RoundedCornerShape(50),
+        focusedScale = 1.12f,
+        borderWidth = 2.dp,
+        glow = false,
+        modifier = Modifier.size(34.dp),
+    ) { _ -> ProfileAvatar(acc, index, 34.dp) }
 }

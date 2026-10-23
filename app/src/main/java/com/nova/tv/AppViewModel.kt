@@ -128,8 +128,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             delay(500)
             val acc = account
-            if (acc == null) replaceAll(Route.Login)
-            else if (connect(acc) != null) replaceAll(Route.Login)
+            when {
+                acc == null && storage.accounts.isEmpty() -> replaceAll(Route.Login)
+                storage.accounts.size >= 2 -> replaceAll(Route.Profiles)
+                acc == null -> replaceAll(Route.Profiles)
+                connect(acc) != null -> replaceAll(Route.Login)
+            }
         }
     }
 
@@ -285,6 +289,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     suspend fun addAccount(name: String, server: String, user: String, pass: String): String? {
         val acc = Account(
+            avatar = storage.accounts.size % 6,
             id = UUID.randomUUID().toString(),
             name = name.trim().ifBlank { hostOf(server) },
             server = normalizeServer(server),
@@ -310,6 +315,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             username = "",
             password = "",
             type = "m3u",
+            avatar = storage.accounts.size % 6,
             epgUrl = epg.trim(),
         )
         return connect(acc)
@@ -1056,13 +1062,46 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
+    // ------------------------------------------------------------- Une seule lecture par abonnement
+
+    /** Lecture en attente de confirmation (abonnement déjà utilisé ailleurs). */
+    var busyWarning by mutableStateOf<Route.Player?>(null)
+    private var lastPlayEnd = 0L
+
+    fun onPlayerClosed() {
+        lastPlayEnd = System.currentTimeMillis()
+    }
+
+    /**
+     * Avant de lancer une lecture, on demande au fournisseur combien de connexions sont ouvertes.
+     * Si l'abonnement est déjà utilisé sur un autre appareil, on prévient au lieu de risquer une suspension.
+     */
+    private fun guardedPlay(route: Route.Player) {
+        val c = client
+        val recentlyHere = System.currentTimeMillis() - lastPlayEnd < 90_000
+        if (c !is XtreamClient || recentlyHere) {
+            navigate(route); return
+        }
+        viewModelScope.launch {
+            val inf = kotlinx.coroutines.withTimeoutOrNull(2500) { runCatching { c.login() }.getOrNull() }
+            val max = inf?.maxConnections ?: 0
+            val active = inf?.activeConnections ?: 0
+            if (inf != null && max > 0 && active >= max) busyWarning = route else navigate(route)
+        }
+    }
+
+    fun confirmBusyPlay() {
+        busyWarning?.let { navigate(it) }
+        busyWarning = null
+    }
+
     fun liveUrl(ch: Channel): String? = client?.liveUrl(ch, storage.liveFormat)
 
     fun playChannel(ch: Channel, list: List<Channel>) {
         val items = list.ifEmpty { listOf(ch) }.mapNotNull { liveItem(it) }
         val idx = items.indexOfFirst { it.id == ch.id }.coerceAtLeast(0)
         if (items.isEmpty()) return
-        navigate(Route.Player(PlaySession(items, idx)))
+        guardedPlay(Route.Player(PlaySession(items, idx)))
     }
 
     fun playCatchup(ch: Channel, p: EpgProgram) {
@@ -1071,7 +1110,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             kind = Kind.MOVIE, id = -ch.id, url = c.catchupUrl(ch, p), title = p.title,
             subtitle = "Replay · ${ch.displayName}", image = ch.logo, catchup = p,
         )
-        navigate(Route.Player(PlaySession(listOf(item), 0)))
+        guardedPlay(Route.Player(PlaySession(listOf(item), 0)))
     }
 
     fun playMovie(m: Movie, fromStart: Boolean = false) {
@@ -1083,7 +1122,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             image = d?.backdrop ?: m.poster, ext = m.ext,
         )
         val resume = if (fromStart) 0L else resumeOf(Kind.MOVIE, m.id)?.takeIf { it.progress < 0.95f }?.position ?: 0L
-        navigate(Route.Player(PlaySession(listOf(item), 0, resume)))
+        guardedPlay(Route.Player(PlaySession(listOf(item), 0, resume)))
     }
 
     fun playEpisode(s: Series, content: SeriesContent, ep: Episode, fromStart: Boolean = false) {
@@ -1100,7 +1139,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val idx = items.indexOfFirst { it.id == ep.id }.coerceAtLeast(0)
         val resume = if (fromStart) 0L else resumeOf(Kind.EPISODE, ep.id)?.takeIf { it.progress < 0.95f }?.position ?: 0L
         if (items.isEmpty()) return
-        navigate(Route.Player(PlaySession(items, idx, resume)))
+        guardedPlay(Route.Player(PlaySession(items, idx, resume)))
     }
 
     /** Lance la reprise depuis une tuile "Reprendre la lecture". */
