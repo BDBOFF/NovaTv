@@ -1,4 +1,4 @@
-<title>SamothTV</title>
+<title>Samoth TV</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="SamothTV : le lecteur IPTV Xtream Codes pour Android TV, Google TV, Fire TV, box Android, téléphone et tablette.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -224,6 +224,62 @@ section.block { padding-block: 88px 0; }
 .faq summary:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; border-radius: 4px; }
 .faq details p { color: var(--muted); padding-bottom: 18px; max-width: 64ch; }
 
+/* ---------- Deux applis */
+.apps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 40px; }
+.app-card {
+  display: flex; flex-direction: column; gap: 8px; text-decoration: none; min-width: 0;
+  border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; background: rgba(17,16,21,0.8);
+  transition: border-color .15s ease, transform .15s ease;
+}
+.app-card:hover, .app-card:focus-visible { border-color: var(--red); transform: translateY(-2px); outline: none; }
+.app-card .tag { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.app-card b { font-family: var(--f-display); font-size: 36px; font-weight: 900; text-transform: uppercase; line-height: 1; }
+.app-card b span { color: var(--red); }
+.app-card p { color: var(--muted); font-size: 15px; }
+.app-card .more { margin-top: auto; padding-top: 6px; font-weight: 700; font-size: 14px; color: var(--fg); }
+@media (max-width: 640px) { .apps { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Bandeau produit */
+.product-band { margin-top: 110px; border-top: 1px solid var(--line); }
+.product-band .wrap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 20px; padding-block: 26px 0; }
+.product-band b { font-family: var(--f-display); font-size: clamp(48px, 7vw, 84px); font-weight: 900; text-transform: uppercase; line-height: 0.9; }
+.product-band b span { color: var(--red); }
+.product-band p { color: var(--muted); max-width: 40em; }
+
+/* ---------- Maquette Samoth HOME */
+.home-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 48px; align-items: center; }
+@media (max-width: 900px) { .home-grid { grid-template-columns: minmax(0, 1fr); } }
+.home-screen {
+  aspect-ratio: 16 / 9; max-width: 100%; border-radius: 14px; overflow: hidden; position: relative;
+  border: 10px solid #18171c; box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px var(--line);
+  background: radial-gradient(90% 90% at 20% 20%, #2a0306, #08080a 70%);
+  container-type: inline-size;
+}
+.home-screen .ghost {
+  position: absolute; left: 4cqw; bottom: 3cqw; font-family: var(--f-display); font-weight: 900; font-size: 15cqw; line-height: 0.8;
+  color: rgba(255,255,255,0.05); text-transform: uppercase; white-space: nowrap;
+}
+.home-screen .gear { position: absolute; top: 3cqw; right: 3.5cqw; width: 3.4cqw; height: 3.4cqw; border-radius: 50%; border: 0.4cqw solid var(--muted); }
+.home-screen .clock { position: absolute; top: 7cqw; left: 6cqw; font-family: var(--f-display); font-weight: 800; font-size: 13cqw; line-height: 0.85; }
+.home-screen .date { position: absolute; top: 21cqw; left: 6.4cqw; font-size: 2cqw; color: var(--muted); font-weight: 600; text-transform: capitalize; }
+.home-screen .favs { position: absolute; left: 6cqw; bottom: 9cqw; display: flex; gap: 2cqw; }
+.home-screen .fav {
+  width: 11cqw; aspect-ratio: 1; border-radius: 2.2cqw; background: rgba(255,255,255,0.07); border: 0.15cqw solid rgba(255,255,255,0.14);
+  display: grid; place-items: center; transition: transform .25s ease, box-shadow .25s ease;
+}
+.home-screen .fav i { width: 5cqw; height: 5cqw; border-radius: 1.2cqw; display: block; }
+.home-screen .fav.focus { transform: scale(1.1); box-shadow: 0 0 3cqw rgba(209,10,32,0.55), 0 0 0 0.3cqw #fff; }
+.home-screen .sig { position: absolute; right: 3.5cqw; bottom: 2.6cqw; font-family: var(--f-mono); font-size: 1.3cqw; color: var(--dim); letter-spacing: 0.12em; }
+.home-list { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.home-list li { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.home-list li span { font-family: var(--f-mono); font-size: 12px; color: var(--red); letter-spacing: 0.08em; text-transform: uppercase; padding-top: 3px; }
+.home-list li p { color: var(--muted); font-size: 15px; }
+.home-list li p b { color: var(--fg); }
+.free {
+  margin-top: 22px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
+}
+.free .v { font-family: var(--f-display); font-weight: 900; font-size: 44px; line-height: 1; }
+
 /* ---------- Pied */
 footer { margin-top: 96px; border-top: 1px solid var(--line); }
 footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 32px; justify-content: space-between; padding-block: 32px 40px; font-size: 13px; color: var(--dim); }
@@ -242,7 +298,8 @@ footer .legal { max-width: 60ch; }
       <b>SAMOTH <span>TV</span></b>
     </a>
     <nav class="links" aria-label="Sections">
-      <a href="#fonctions">Fonctions</a>
+      <a href="#samothtv">Samoth TV</a>
+      <a href="#samothhome">Samoth HOME</a>
       <a href="#tarifs">Tarifs</a>
       <a href="#installer">Installer</a>
       <a href="#faq">FAQ</a>
@@ -256,14 +313,18 @@ footer .legal { max-width: 60ch; }
   <section class="hero">
     <div class="wrap hero-grid">
       <div>
-        <p class="eyebrow">Lecteur IPTV · Xtream Codes</p>
-        <h1>Votre IPTV<br>en mode <em>cinéma</em></h1>
-        <p class="lead">Entrez votre serveur, votre identifiant et votre mot de passe. SamothTV transforme votre abonnement en une vraie plateforme : affiches HD, tendances de la semaine, reprise de lecture, guide TV et replay.</p>
+        <p class="eyebrow">Applis pour Android TV, Fire TV et mobile</p>
+        <h1>Votre salon<br>en mode <em>cinéma</em></h1>
+        <p class="lead">Deux applis pensées ensemble. Samoth TV transforme votre abonnement IPTV en vraie plateforme de films, séries et chaînes. Samoth HOME remplace l'écran d'accueil de votre TV par un lanceur épuré.</p>
         <div class="cta">
           <a class="btn btn-red" href="#installer">Essayer 3 jours gratuitement</a>
           <a class="btn btn-ghost" href="#tarifs">Voir les tarifs</a>
         </div>
-        <p class="fine">Lecteur uniquement. Aucune chaîne ni aucun contenu n'est fourni avec l'application.</p>
+        <p class="fine">Samoth TV est un lecteur : aucune chaîne ni aucun contenu n'est fourni.</p>
+        <div class="apps">
+          <a class="app-card" href="#samothtv"><span class="tag">Lecteur IPTV</span><b>Samoth <span>TV</span></b><p>Xtream Codes et M3U, tendances, reprise, guide TV, replay.</p><span class="more">Découvrir →</span></a>
+          <a class="app-card" href="#samothhome"><span class="tag">Écran d'accueil</span><b>Samoth <span>HOME</span></b><p>Grande horloge, vos 5 applis préférées, réglages à portée.</p><span class="more">Découvrir →</span></a>
+        </div>
       </div>
 
       <div class="tv" aria-label="Aperçu de l'interface SamothTV sur une télévision et un téléphone">
@@ -307,8 +368,13 @@ footer .legal { max-width: 60ch; }
     </div>
   </div>
 
+  <!-- Samoth TV -->
+  <div class="product-band" id="samothtv">
+    <div class="wrap"><b>Samoth <span>TV</span></b><p>Le lecteur IPTV. Connectez votre abonnement Xtream Codes ou votre lien M3U, et retrouvez films, séries et chaînes comme sur une plateforme de streaming.</p></div>
+  </div>
+
   <!-- Fonctions -->
-  <section class="block" id="fonctions">
+  <section class="block" id="fonctions" style="padding-top: 48px">
     <div class="wrap">
       <div class="sec-head">
         <h2>Pensée pour le canapé</h2>
@@ -330,7 +396,7 @@ footer .legal { max-width: 60ch; }
     <div class="wrap">
       <div class="sec-head">
         <h2>Choisissez votre offre</h2>
-        <p>Une licence fonctionne sur deux appareils, par exemple votre TV et votre téléphone. Annulable à tout moment.</p>
+        <p>Pour Samoth TV. Une licence fonctionne sur deux appareils, par exemple votre TV et votre téléphone. Annulable à tout moment.</p>
       </div>
       <div class="prices">
         <div class="ticket"><span class="d">1 mois</span><span class="v">2,99<small>€</small></span><span class="per">Sans engagement</span><div class="go"><a class="btn btn-ghost" href="#installer">Choisir</a></div></div>
@@ -342,6 +408,39 @@ footer .legal { max-width: 60ch; }
       <div class="trial">
         <div><b>3 jours offerts</b><p>Installez l'appli et testez tout, sans carte bancaire.</p></div>
         <a class="btn btn-red" href="#installer">Commencer l'essai</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Samoth HOME -->
+  <div class="product-band" id="samothhome">
+    <div class="wrap"><b>Samoth <span>HOME</span></b><p>Le lanceur pour Android TV et Google TV. Il remplace l'écran d'accueil d'origine, ses publicités et ses rangées imposées.</p></div>
+  </div>
+  <section class="block" style="padding-top: 48px">
+    <div class="wrap home-grid">
+      <div class="home-screen" aria-label="Aperçu de l'écran d'accueil Samoth HOME">
+        <div class="ghost" aria-hidden="true">Samoth Home</div>
+        <div class="gear" aria-hidden="true"></div>
+        <div class="clock" id="hclock">21:47</div>
+        <div class="date" id="hdate">vendredi 23 octobre</div>
+        <div class="favs" id="favs" aria-hidden="true">
+          <div class="fav"><i style="background: linear-gradient(135deg, #d10a20, #7a000f)"></i></div>
+          <div class="fav"><i style="background: linear-gradient(135deg, #3d7bff, #1b2f80)"></i></div>
+          <div class="fav"><i style="background: linear-gradient(135deg, #ffc24b, #a86a00)"></i></div>
+          <div class="fav"><i style="background: linear-gradient(135deg, #3ddc84, #136b3b)"></i></div>
+          <div class="fav"><i style="background: linear-gradient(135deg, #b8b5c2, #4a4852)"></i></div>
+        </div>
+        <div class="sig" aria-hidden="true">SAMOTH HOME</div>
+      </div>
+      <div>
+        <ul class="home-list">
+          <li><span>Allumage</span><p><b>Grande horloge et date</b>, sur un fond sobre aux couleurs Samoth.</p></li>
+          <li><span>Favoris</span><p><b>Vos 5 applis les plus utilisées</b>, en tuiles de verre avec un halo à la sélection.</p></li>
+          <li><span>Applis</span><p><b>Toutes vos applis</b> dans une grille triée par utilisation.</p></li>
+          <li><span>Réglages</span><p><b>Roue crantée</b> pour ouvrir directement les réglages de la TV.</p></li>
+          <li><span>Mises à jour</span><p><b>Une pastille</b> prévient quand une nouvelle version est prête.</p></li>
+        </ul>
+        <div class="free"><span class="v">Gratuit</span><a class="btn btn-ghost" href="#installer">Installer Samoth HOME</a></div>
       </div>
     </div>
   </section>
@@ -358,7 +457,9 @@ footer .legal { max-width: 60ch; }
           <span class="n">1</span>
           <h3>Sur la TV</h3>
           <p>Installez l'appli gratuite « Downloader » depuis le magasin de votre TV ou de votre Fire TV, puis tapez ce lien :</p>
-          <div class="url"><code id="dl">github.com/BDBOFF/novatv/releases/latest/download/NovaTV.apk</code><button type="button" id="copy" aria-describedby="dl">Copier</button></div>
+          <div class="url"><code id="dl">github.com/BDBOFF/novatv/releases/latest/download/NovaTV.apk</code><button type="button" class="copy" data-target="dl">Copier</button></div>
+          <p>Pour Samoth HOME :</p>
+          <div class="url"><code id="dl2">github.com/BDBOFF/SamothHOME/releases/latest/download/SamothHome.apk</code><button type="button" class="copy" data-target="dl2">Copier</button></div>
         </div>
         <div class="step">
           <span class="n">2</span>
@@ -369,7 +470,7 @@ footer .legal { max-width: 60ch; }
         <div class="step">
           <span class="n">3</span>
           <h3>Connectez-vous</h3>
-          <p>Entrez l'adresse de votre serveur, votre identifiant et votre mot de passe Xtream Codes. Vos 3 jours d'essai démarrent.</p>
+          <p>Dans Samoth TV, entrez votre serveur Xtream Codes ou collez votre lien M3U. Vos 3 jours d'essai démarrent. Pour Samoth HOME, appuyez sur la touche Accueil et choisissez « Toujours ».</p>
         </div>
       </div>
     </div>
@@ -381,7 +482,9 @@ footer .legal { max-width: 60ch; }
       <div class="sec-head"><h2>Questions</h2><p></p></div>
       <div class="faq">
         <details><summary>SamothTV fournit-il des chaînes ou des films ?</summary><p>Non. SamothTV est un lecteur. Il faut un abonnement IPTV au format Xtream Codes, que vous avez le droit d'utiliser. L'appli ne contient aucune chaîne, aucune playlist et aucun contenu.</p></details>
-        <details><summary>Sur quels appareils fonctionne-t-il ?</summary><p>Android TV, Google TV, Fire TV, box Android, téléphones et tablettes Android (Android 5 ou plus récent). L'iPhone et l'iPad ne sont pas pris en charge pour le moment.</p></details>
+        <details><summary>Quels types d'abonnement sont acceptés ?</summary><p>Les comptes Xtream Codes (serveur, identifiant, mot de passe) et les listes M3U ou M3U8, avec leur guide TV au format XMLTV.</p></details>
+        <details><summary>Samoth HOME remplace-t-il définitivement mon accueil ?</summary><p>Non. Il devient votre écran d'accueil quand vous le choisissez, et vous pouvez revenir à l'accueil d'origine à tout moment depuis les réglages de la TV.</p></details>
+        <details><summary>Sur quels appareils fonctionnent les applis ?</summary><p>Android TV, Google TV, Fire TV, box Android, téléphones et tablettes Android (Android 5 ou plus récent). L'iPhone et l'iPad ne sont pas pris en charge pour le moment.</p></details>
         <details><summary>Que se passe-t-il à la fin de l'essai ?</summary><p>L'appli vous propose de choisir une formule. Rien n'est prélevé automatiquement : vous ne payez que si vous choisissez.</p></details>
         <details><summary>Comment recevoir les mises à jour ?</summary><p>Un bouton « Mise à jour disponible » apparaît dans l'appli. Un clic, et la nouvelle version s'installe en gardant vos réglages et vos favoris.</p></details>
         <details><summary>Les affiches et résumés sont-ils en français ?</summary><p>Oui. Fonds d'écran HD, logos des titres, résumés et distribution s'affichent en français, même si votre fournisseur donne peu d'informations.</p></details>
@@ -393,7 +496,7 @@ footer .legal { max-width: 60ch; }
 
 <footer>
   <div class="wrap">
-    <span>© 2026 SamothTV · Édité par ML Concept</span>
+    <span>© 2026 Samoth TV · Samoth HOME · Édité par ML Concept</span>
     <span class="legal">SamothTV est un lecteur multimédia. Il ne fournit, n'héberge et ne vend aucun contenu audiovisuel. Utilisez-le uniquement avec des sources auxquelles vous avez légalement accès.</span>
   </div>
 </footer>
@@ -412,10 +515,23 @@ footer .legal { max-width: 60ch; }
       posters[i].classList.add('focus');
     }, 1700);
   }
-  // Copie du lien de téléchargement
-  var btn = document.getElementById('copy');
-  var code = document.getElementById('dl');
-  if (btn && code) {
+  // Accueil Samoth HOME : heure réelle et sélection qui se déplace
+  var hc = document.getElementById('hclock'), hd = document.getElementById('hdate');
+  function tick() {
+    var d = new Date();
+    if (hc) hc.textContent = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    if (hd) { try { hd.textContent = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); } catch (e) {} }
+  }
+  tick(); setInterval(tick, 20000);
+  var favs = document.querySelectorAll('#favs .fav'), f = 0;
+  if (favs.length) favs[0].classList.add('focus');
+  if (!reduce && favs.length) {
+    setInterval(function () { favs[f].classList.remove('focus'); f = (f + 1) % favs.length; favs[f].classList.add('focus'); }, 1900);
+  }
+  // Copie des liens de téléchargement
+  document.querySelectorAll('button.copy').forEach(function (btn) {
+    var code = document.getElementById(btn.getAttribute('data-target'));
+    if (!code) return;
     btn.addEventListener('click', function () {
       var text = code.textContent;
       var done = function () { btn.textContent = 'Copié'; setTimeout(function () { btn.textContent = 'Copier'; }, 1600); };
@@ -428,6 +544,6 @@ footer .legal { max-width: 60ch; }
         navigator.clipboard.writeText(text).then(done, fallback);
       } catch (e) { fallback(); }
     });
-  }
+  });
 })();
 </script>
