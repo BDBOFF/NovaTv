@@ -130,7 +130,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val acc = account
             when {
                 acc == null && storage.accounts.isEmpty() -> replaceAll(Route.Login)
-                storage.accounts.size >= 2 -> replaceAll(Route.Profiles)
+                storage.accounts.size >= 2 || acc?.pin?.isNotEmpty() == true -> replaceAll(Route.Profiles)
                 acc == null -> replaceAll(Route.Profiles)
                 connect(acc) != null -> replaceAll(Route.Login)
             }
@@ -406,11 +406,33 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun switchAccount(acc: Account) {
+    fun switchAccount(acc: Account, force: Boolean = false) {
         viewModelScope.launch {
             replaceAll(Route.Splash)
-            if (connect(acc) != null) replaceAll(Route.Login)
+            if (connect(acc, force) != null) replaceAll(if (storage.accounts.size >= 2) Route.Profiles else Route.Login)
         }
+    }
+
+    // ------------------------------------------------------------- Gestion des profils
+
+    fun updateAccount(acc: Account) {
+        storage.upsertAccount(acc)
+    }
+
+    /** Enregistre un profil modifié ; s'il est en cours d'utilisation, on recharge avec les nouveaux codes. */
+    fun saveEditedAccount(acc: Account, credentialsChanged: Boolean) {
+        storage.upsertAccount(acc)
+        if (credentialsChanged && acc.id == storage.activeId) switchAccount(acc, force = true) else back()
+    }
+
+    fun deleteAccount(acc: Account) {
+        val wasActive = acc.id == storage.activeId
+        storage.removeAccount(acc.id)
+        if (wasActive) {
+            client = null
+            info = null
+        }
+        replaceAll(if (storage.accounts.isEmpty()) Route.Login else Route.Profiles)
     }
 
     fun logout() {

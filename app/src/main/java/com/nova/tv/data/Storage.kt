@@ -88,7 +88,7 @@ class Storage(context: Context) {
     // ---------------------------------------------------------- Playlists
 
     fun upsertAccount(a: Account) {
-        accounts = accounts.filterNot { it.id == a.id } + a
+        accounts = if (accounts.any { it.id == a.id }) accounts.map { if (it.id == a.id) a else it } else accounts + a
         write("accounts", accounts)
     }
 

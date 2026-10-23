@@ -47,6 +47,7 @@ sealed interface Route {
     data object Splash : Route
     data object Login : Route
     data object Profiles : Route
+    data class ProfileEdit(val id: String) : Route
     data object Main : Route
     data class MovieDetail(val id: Int) : Route
     data class SeriesDetail(val id: Int) : Route

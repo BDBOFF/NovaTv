@@ -84,6 +84,7 @@ fun AppRoot(vm: AppViewModel) {
                 Route.Splash -> "splash"
                 Route.Login -> "login"
                 Route.Profiles -> "profiles"
+                is Route.ProfileEdit -> "profile_edit_${route.id}"
                 Route.Main -> "main"
                 is Route.MovieDetail -> "movie_${route.id}"
                 is Route.SeriesDetail -> "series_${route.id}"
@@ -113,7 +114,7 @@ fun AppRoot(vm: AppViewModel) {
                 }
             }
             val locked = vm.license.state == com.nova.tv.data.LicenseManager.State.EXPIRED &&
-                route != Route.Splash && route != Route.Login && route != Route.Profiles
+                route != Route.Splash && route != Route.Login && route != Route.Profiles && route !is Route.ProfileEdit
             if (locked) {
                 com.nova.tv.ui.screens.LicenseScreen(vm, blocking = true)
             } else if (vm.showLicense) {
@@ -124,6 +125,7 @@ fun AppRoot(vm: AppViewModel) {
                     Route.Splash -> SplashScreen(vm)
                     Route.Login -> LoginScreen(vm)
                     Route.Profiles -> com.nova.tv.ui.screens.ProfilesScreen(vm)
+                    is Route.ProfileEdit -> com.nova.tv.ui.screens.ProfileEditScreen(vm, route.id)
                     Route.Main -> MainScreen(vm)
                     is Route.MovieDetail -> MovieDetailScreen(vm, route.id)
                     is Route.SeriesDetail -> SeriesDetailScreen(vm, route.id)

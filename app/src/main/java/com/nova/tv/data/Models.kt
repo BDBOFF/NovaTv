@@ -15,6 +15,10 @@ data class Account(
     val epgUrl: String = "",
     /** Couleur de l'avatar du profil. */
     val avatar: Int = -1,
+    /** Avatar illustré (emoji) ; vide = initiale du nom. */
+    val emoji: String = "",
+    /** Code PIN à 4 chiffres pour ouvrir le profil ; vide = pas de code. */
+    val pin: String = "",
 )
 
 data class AccountInfo(
