@@ -90,7 +90,6 @@ fun LicenseScreen(vm: AppViewModel, blocking: Boolean, onClose: () -> Unit = {})
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     val first = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 
     fun submit() {
         if (busy) return
@@ -175,6 +174,15 @@ fun LicenseScreen(vm: AppViewModel, blocking: Boolean, onClose: () -> Unit = {})
                                 }
                             })
                         }
+                    }
+                }
+                if (LocalDevice.current.isTv) {
+                    PhoneConnectCard(
+                        title = "Saisir la clé depuis votre téléphone",
+                        page = { com.nova.tv.data.PhoneForm.licensePage(it) },
+                    ) { v ->
+                        code = v["key"].orEmpty().trim()
+                        if (code.isNotEmpty()) submit()
                     }
                 }
                 Column(Modifier.widthIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

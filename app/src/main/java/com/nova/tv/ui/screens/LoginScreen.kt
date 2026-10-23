@@ -185,6 +185,40 @@ fun TvTextField(
     }
 }
 
+/** Carte "QR code" : le téléphone (iPhone ou Android) remplit le formulaire à la place de la télécommande. */
+@Composable
+fun PhoneConnectCard(title: String, page: (String) -> String, onSubmit: (Map<String, String>) -> Unit) {
+    val submitState = androidx.compose.runtime.rememberUpdatedState(onSubmit)
+    val form = remember { com.nova.tv.data.PhoneForm(page) { submitState.value(it) } }
+    var url by remember { mutableStateOf<String?>(null) }
+    androidx.compose.runtime.DisposableEffect(form) {
+        url = form.start()
+        onDispose { form.stop() }
+    }
+    val u = url ?: return
+    Row(
+        Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White.copy(alpha = 0.06f))
+            .border(1.dp, Nova.Line, RoundedCornerShape(14.dp))
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        QrCode(u, 120.dp)
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.widthIn(max = 260.dp)) {
+            Text(title, style = Type.H3)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Scannez avec l'appareil photo de votre iPhone ou Android, connecté au même Wi-Fi que la TV.",
+                style = Type.Small, color = Nova.Muted,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(u.substringBefore("/?"), style = Type.Small, color = Nova.Dim)
+        }
+    }
+}
+
 @Composable
 fun LoginScreen(vm: AppViewModel) {
     var name by rememberSaveable { mutableStateOf("") }
@@ -199,7 +233,6 @@ fun LoginScreen(vm: AppViewModel) {
     val firstField = remember { FocusRequester() }
     val accounts = vm.storage.accounts
 
-    LaunchedEffect(Unit) { runCatching { firstField.requestFocus() } }
 
     // Collage d'une URL M3U complète : on en extrait serveur + identifiants.
     fun onServerChange(v: String) {
@@ -260,10 +293,28 @@ fun LoginScreen(vm: AppViewModel) {
                 )
                 Spacer(Modifier.height(18.dp))
                 Text(
-                    "Connectez votre abonnement Xtream Codes : films, séries, chaînes en direct et guide TV, " +
+                    "Connectez votre abonnement Xtream Codes ou votre lien M3U : films, séries, chaînes en direct et guide TV, " +
                         "avec affiches et fiches détaillées.",
                     style = Type.Body, color = Nova.Muted, modifier = Modifier.widthIn(max = 380.dp),
                 )
+                Spacer(Modifier.height(22.dp))
+                PhoneConnectCard(
+                    title = "Plus simple : remplissez depuis votre téléphone",
+                    page = { com.nova.tv.data.PhoneForm.loginPage(it) },
+                ) { v ->
+                    name = v["name"].orEmpty()
+                    if (v["type"] == "m3u") {
+                        m3uMode = true
+                        m3uUrl = v["m3u"].orEmpty()
+                        epgUrl = v["epg"].orEmpty()
+                    } else {
+                        m3uMode = false
+                        user = v["username"].orEmpty()
+                        pass = v["password"].orEmpty()
+                        onServerChange(v["server"].orEmpty())
+                    }
+                    submit()
+                }
             }
             Text(
                 "Lecteur uniquement · Aucun contenu n'est fourni avec l'application",
