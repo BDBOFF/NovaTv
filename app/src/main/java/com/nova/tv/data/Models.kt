@@ -9,6 +9,10 @@ data class Account(
     val server: String,
     val username: String,
     val password: String,
+    /** "xtream" ou "m3u" */
+    val type: String = "xtream",
+    /** Guide TV XMLTV (listes M3U uniquement). */
+    val epgUrl: String = "",
 )
 
 data class AccountInfo(

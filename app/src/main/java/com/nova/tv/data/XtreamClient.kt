@@ -40,14 +40,14 @@ data class XtSeriesInfo(
     val content: SeriesContent,
 )
 
-class XtreamClient(val account: Account, cacheRoot: File) {
+class XtreamClient(override val account: Account, cacheRoot: File) : Source {
     val base = normalizeServer(account.server)
     private val user = account.username
     private val pass = account.password
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private val dir = File(cacheRoot, "xtream/" + (base + user).hashCode().toUInt().toString(16)).apply { mkdirs() }
 
-    var timezone: String? = null
+    override var timezone: String? = null
 
     private val vodInfoCache = HashMap<Int, XtVodInfo>()
     private val seriesInfoCache = HashMap<Int, XtSeriesInfo>()
@@ -89,7 +89,7 @@ class XtreamClient(val account: Account, cacheRoot: File) {
             }
         }
 
-    fun clearCache() {
+    override fun clearCache() {
         dir.listFiles()?.forEach { it.delete() }
         vodInfoCache.clear()
         seriesInfoCache.clear()
@@ -97,7 +97,7 @@ class XtreamClient(val account: Account, cacheRoot: File) {
 
     // ------------------------------------------------------------------ Compte
 
-    suspend fun login(): AccountInfo {
+    override suspend fun login(): AccountInfo {
         val el = try {
             fetch(api())
         } catch (e: kotlinx.serialization.SerializationException) {
@@ -137,11 +137,11 @@ class XtreamClient(val account: Account, cacheRoot: File) {
         }
     }
 
-    suspend fun liveCategories(force: Boolean) = categories("get_live_categories", force)
-    suspend fun vodCategories(force: Boolean) = categories("get_vod_categories", force)
-    suspend fun seriesCategories(force: Boolean) = categories("get_series_categories", force)
+    override suspend fun liveCategories(force: Boolean) = categories("get_live_categories", force)
+    override suspend fun vodCategories(force: Boolean) = categories("get_vod_categories", force)
+    override suspend fun seriesCategories(force: Boolean) = categories("get_series_categories", force)
 
-    suspend fun liveStreams(force: Boolean): List<Channel> {
+    override suspend fun liveStreams(force: Boolean): List<Channel> {
         val el = cached("get_live_streams", api("get_live_streams"), CATALOG_TTL, force)
         return withContext(Dispatchers.Default) {
             el.items().mapNotNull { e ->
@@ -165,7 +165,7 @@ class XtreamClient(val account: Account, cacheRoot: File) {
         }
     }
 
-    suspend fun vodStreams(force: Boolean): List<Movie> {
+    override suspend fun vodStreams(force: Boolean): List<Movie> {
         val el = cached("get_vod_streams", api("get_vod_streams"), CATALOG_TTL, force)
         return withContext(Dispatchers.Default) {
             el.items().mapNotNull { e ->
@@ -188,7 +188,7 @@ class XtreamClient(val account: Account, cacheRoot: File) {
         }
     }
 
-    suspend fun series(force: Boolean): List<Series> {
+    override suspend fun series(force: Boolean): List<Series> {
         val el = cached("get_series", api("get_series"), CATALOG_TTL, force)
         return withContext(Dispatchers.Default) {
             el.items().mapNotNull { e ->
@@ -243,7 +243,7 @@ class XtreamClient(val account: Account, cacheRoot: File) {
         }
     }
 
-    suspend fun vodInfo(id: Int): XtVodInfo {
+    override suspend fun vodInfo(id: Int): XtVodInfo {
         vodInfoCache[id]?.let { return it }
         val el = cached("vod_$id", api("get_vod_info", "&vod_id=$id"), DETAIL_TTL, false)
         val info = withContext(Dispatchers.Default) { parseMeta(el.obj()?.objOf("info")) }
@@ -251,7 +251,7 @@ class XtreamClient(val account: Account, cacheRoot: File) {
         return info
     }
 
-    suspend fun seriesInfo(id: Int): XtSeriesInfo {
+    override suspend fun seriesInfo(id: Int): XtSeriesInfo {
         seriesInfoCache[id]?.let { return it }
         val el = cached("series_$id", api("get_series_info", "&series_id=$id"), SERIES_TTL, false)
         val result = withContext(Dispatchers.Default) {
@@ -320,23 +320,23 @@ class XtreamClient(val account: Account, cacheRoot: File) {
         }.distinctBy { it.start }.sortedBy { it.start }
     }
 
-    suspend fun shortEpg(streamId: Int, limit: Int = 12): List<EpgProgram> {
+    override suspend fun shortEpg(streamId: Int, limit: Int): List<EpgProgram> {
         val el = fetch(api("get_short_epg", "&stream_id=$streamId&limit=$limit"))
         return withContext(Dispatchers.Default) { parseEpg(el) }
     }
 
-    suspend fun fullEpg(streamId: Int): List<EpgProgram> {
+    override suspend fun fullEpg(streamId: Int): List<EpgProgram> {
         val el = fetch(api("get_simple_data_table", "&stream_id=$streamId"))
         return withContext(Dispatchers.Default) { parseEpg(el) }
     }
 
     // ------------------------------------------------------------------ URLs de lecture
 
-    fun liveUrl(ch: Channel, format: String) = "$base/live/$user/$pass/${ch.id}.$format"
-    fun movieUrl(m: Movie) = "$base/movie/$user/$pass/${m.id}.${m.ext}"
-    fun episodeUrl(id: Int, ext: String) = "$base/series/$user/$pass/$id.$ext"
+    override fun liveUrl(ch: Channel, format: String) = "$base/live/$user/$pass/${ch.id}.$format"
+    override fun movieUrl(m: Movie) = "$base/movie/$user/$pass/${m.id}.${m.ext}"
+    override fun episodeUrl(id: Int, ext: String) = "$base/series/$user/$pass/$id.$ext"
 
-    fun catchupUrl(ch: Channel, p: EpgProgram): String {
+    override fun catchupUrl(ch: Channel, p: EpgProgram): String {
         val fmt = SimpleDateFormat("yyyy-MM-dd:HH-mm", Locale.US)
         fmt.timeZone = timezone?.let { TimeZone.getTimeZone(it) } ?: TimeZone.getDefault()
         val minutes = ((p.end - p.start) / 60000L).coerceAtLeast(1)

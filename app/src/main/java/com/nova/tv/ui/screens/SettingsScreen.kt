@@ -37,6 +37,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nova.tv.AppViewModel
+import kotlinx.coroutines.launch
 import com.nova.tv.BuildConfig
 import com.nova.tv.ui.Nova
 import com.nova.tv.ui.Route
@@ -47,6 +48,7 @@ import com.nova.tv.ui.components.formatDate
 
 private enum class Section(val label: String) {
     ACCOUNT("Compte"),
+    LICENSE("Licence"),
     PLAYLISTS("Playlists"),
     PLAYBACK("Lecture & affichage"),
     ADVANCED("Avancé"),
@@ -71,6 +73,7 @@ fun SettingsScreen(vm: AppViewModel) {
             Text(section.label, style = Type.H1)
             when (section) {
                 Section.ACCOUNT -> AccountSection(vm)
+                Section.LICENSE -> LicenseSection(vm)
                 Section.PLAYLISTS -> PlaylistsSection(vm)
                 Section.PLAYBACK -> PlaybackSection(vm)
                 Section.ADVANCED -> AdvancedSection(vm)
@@ -149,8 +152,13 @@ private fun AccountSection(vm: AppViewModel) {
         Text("Aucun compte connecté.", style = Type.Body, color = Nova.Muted); return
     }
     InfoRow("Playlist", acc.name)
-    InfoRow("Serveur", acc.server.substringAfter("://"))
-    InfoRow("Utilisateur", acc.username)
+    if (acc.type == "m3u") {
+        InfoRow("Type", "Playlist M3U")
+        InfoRow("Lien", acc.server.substringAfter("://").take(60))
+    } else {
+        InfoRow("Serveur", acc.server.substringAfter("://"))
+        InfoRow("Utilisateur", acc.username)
+    }
     if (info != null) {
         val active = info.status.equals("Active", true)
         InfoRow("Statut", if (active) "Actif" else info.status, if (active) Nova.Green else Nova.Gold)
@@ -182,7 +190,10 @@ private fun PlaylistsSection(vm: AppViewModel) {
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(acc.name, style = Type.H3)
-                    Text("${acc.username} · ${acc.server.substringAfter("://")}", style = Type.Small, color = Nova.Muted)
+                    Text(
+                        if (acc.type == "m3u") "M3U · ${acc.server.substringAfter("://").take(50)}" else "${acc.username} · ${acc.server.substringAfter("://")}",
+                        style = Type.Small, color = Nova.Muted,
+                    )
                 }
                 if (active) com.nova.tv.ui.components.Badge("ACTIVE")
             }
@@ -276,5 +287,43 @@ private fun AboutSection(vm: AppViewModel) {
             "légaux auxquels vous avez droit. Données de films et séries fournies par TMDB ; " +
             "ce produit utilise l'API TMDB mais n'est ni approuvé ni certifié par TMDB.",
         style = Type.Body, color = Nova.Muted,
+    )
+}
+
+@Composable
+private fun LicenseSection(vm: AppViewModel) {
+    val lic = vm.license
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val context = LocalContext.current
+    when (lic.state) {
+        com.nova.tv.data.LicenseManager.State.ACTIVE -> {
+            InfoRow("Statut", "Activée", Nova.Green)
+            InfoRow("Offre", lic.plan ?: if (lic.isOwner) "Propriétaire" else "SamothTV")
+            InfoRow("Valable jusqu'au", lic.expiresAt?.let { formatDate(it) } ?: "Sans limite")
+            lic.key?.let { k -> InfoRow("Clé", "••••" + k.takeLast(6)) }
+        }
+        com.nova.tv.data.LicenseManager.State.TRIAL -> {
+            InfoRow("Statut", "Essai gratuit", Nova.Gold)
+            InfoRow("Jours restants", "${lic.trialDaysLeft}")
+        }
+        com.nova.tv.data.LicenseManager.State.EXPIRED -> InfoRow("Statut", "Expirée", Nova.Accent)
+    }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        NovaButton(
+            if (lic.state == com.nova.tv.data.LicenseManager.State.ACTIVE) "Changer de clé" else "Voir les offres / saisir une clé",
+            onClick = { vm.showLicense = true }, primary = true,
+        )
+        if (lic.key != null) {
+            NovaButton("Libérer cet appareil", onClick = {
+                scope.launch {
+                    val err = lic.deactivate()
+                    Toast.makeText(context, err ?: "Licence retirée de cet appareil", Toast.LENGTH_SHORT).show()
+                }
+            })
+        }
+    }
+    Text(
+        "Une licence fonctionne sur 2 appareils. Pour l'utiliser sur un nouvel appareil, libérez-en d'abord un autre.",
+        style = Type.Small, color = Nova.Muted,
     )
 }

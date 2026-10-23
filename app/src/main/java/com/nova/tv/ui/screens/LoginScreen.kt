@@ -191,6 +191,9 @@ fun LoginScreen(vm: AppViewModel) {
     var server by rememberSaveable { mutableStateOf("") }
     var user by rememberSaveable { mutableStateOf("") }
     var pass by rememberSaveable { mutableStateOf("") }
+    var m3uMode by rememberSaveable { mutableStateOf(false) }
+    var m3uUrl by rememberSaveable { mutableStateOf("") }
+    var epgUrl by rememberSaveable { mutableStateOf("") }
     var localError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val firstField = remember { FocusRequester() }
@@ -216,6 +219,15 @@ fun LoginScreen(vm: AppViewModel) {
 
     fun submit() {
         if (vm.loading) return
+        if (m3uMode) {
+            if (!m3uUrl.trim().startsWith("http")) {
+                localError = "Collez le lien complet de votre playlist (commençant par http)."
+                return
+            }
+            localError = null
+            scope.launch { vm.addM3u(name, m3uUrl, epgUrl) }
+            return
+        }
         if (server.isBlank() || user.isBlank() || pass.isBlank()) {
             localError = "Renseignez l'adresse du serveur, l'utilisateur et le mot de passe."
             return
@@ -274,14 +286,33 @@ fun LoginScreen(vm: AppViewModel) {
                 Spacer(Modifier.height(10.dp))
             }
             Text("Ajouter une playlist", style = Type.H1)
-            TvTextField(
-                "Adresse du serveur", server, ::onServerChange,
-                placeholder = "http://exemple.com:8080", keyboardType = KeyboardType.Uri,
-                focusRequester = firstField,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                TvTextField("Nom d'utilisateur", user, { user = it }, Modifier.weight(1f))
-                TvTextField("Mot de passe", pass, { pass = it }, Modifier.weight(1f), password = true)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Chip("Xtream Codes", !m3uMode) { m3uMode = false; localError = null }
+                Chip("Lien M3U", m3uMode) { m3uMode = true; localError = null }
+            }
+            if (!m3uMode) {
+                TvTextField(
+                    "Adresse du serveur", server, ::onServerChange,
+                    placeholder = "http://exemple.com:8080", keyboardType = KeyboardType.Uri,
+                    focusRequester = firstField,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    TvTextField("Nom d'utilisateur", user, { user = it }, Modifier.weight(1f))
+                    TvTextField("Mot de passe", pass, { pass = it }, Modifier.weight(1f), password = true)
+                }
+            } else {
+                TvTextField(
+                    "Lien de la playlist (M3U, M3U8)", m3uUrl, { m3uUrl = it },
+                    placeholder = "http://exemple.com/playlist.m3u", keyboardType = KeyboardType.Uri,
+                )
+                TvTextField(
+                    "Lien du guide TV XMLTV (facultatif)", epgUrl, { epgUrl = it },
+                    placeholder = "http://exemple.com/epg.xml", keyboardType = KeyboardType.Uri,
+                )
+                Text(
+                    "Le guide est souvent déjà indiqué dans la playlist : laissez vide si vous n'en avez pas.",
+                    style = Type.Small, color = Nova.Muted,
+                )
             }
             TvTextField(
                 "Nom de la playlist (facultatif)", name, { name = it },

@@ -141,6 +141,7 @@ private fun TopBar(vm: AppViewModel, requesters: Map<MainTab, FocusRequester>) {
             Spacer(Modifier.width(10.dp))
             UpdatePill(vm)
         }
+        TrialPill(vm)
         Spacer(Modifier.width(18.dp))
         Text(formatClock(now), style = Type.H3, color = Nova.Muted)
     }
@@ -231,6 +232,7 @@ private fun MobileMain(vm: AppViewModel) {
                 UpdatePill(vm)
                 Spacer(Modifier.width(6.dp))
             }
+            TrialPill(vm)
             MobileIcon(Icons.Filled.Search, vm.tab == MainTab.SEARCH) { vm.tab = MainTab.SEARCH }
             MobileIcon(Icons.Filled.Settings, vm.tab == MainTab.SETTINGS) { vm.tab = MainTab.SETTINGS }
         }
@@ -287,4 +289,35 @@ private fun MobileIcon(icon: ImageVector, selected: Boolean, onClick: () -> Unit
     ) {
         Icon(icon, null, tint = if (selected) Nova.Accent else Color.White, modifier = Modifier.size(22.dp))
     }
+}
+
+/** Pastille "Essai · 2 j" : ouvre l'écran des offres. */
+@Composable
+private fun TrialPill(vm: AppViewModel) {
+    val lic = vm.license
+    if (lic.state != com.nova.tv.data.LicenseManager.State.TRIAL) return
+    Spacer(Modifier.width(8.dp))
+    FocusBox(
+        onClick = { vm.showLicense = true },
+        shape = RoundedCornerShape(50),
+        focusedScale = 1.05f,
+        borderWidth = 0.dp,
+        glow = false,
+        modifier = Modifier.height(30.dp),
+    ) { focused ->
+        Box(
+            Modifier
+                .background(if (focused) Color.White else Nova.Surface3)
+                .padding(horizontal = 12.dp)
+                .height(30.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                "Essai · ${lic.trialDaysLeft} j",
+                style = Type.Small,
+                color = if (focused) Color.Black else Nova.Gold,
+            )
+        }
+    }
+    Spacer(Modifier.width(6.dp))
 }

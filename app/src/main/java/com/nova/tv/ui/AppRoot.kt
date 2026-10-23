@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -92,7 +93,20 @@ fun AppRoot(vm: AppViewModel) {
                 is Route.Grid -> "grid_${route.mode}_${route.key}_${route.scope}"
                 is Route.TmdbDetail -> "tmdb_${route.kind}_${route.id}"
             }
-            holder.SaveableStateProvider(key) {
+            LaunchedEffect(Unit) {
+                while (true) {
+                    kotlinx.coroutines.delay(10 * 60 * 1000L)
+                    vm.license.refresh()
+                }
+            }
+            val locked = vm.license.state == com.nova.tv.data.LicenseManager.State.EXPIRED &&
+                route != Route.Splash && route != Route.Login
+            if (locked) {
+                com.nova.tv.ui.screens.LicenseScreen(vm, blocking = true)
+            } else if (vm.showLicense) {
+                BackHandler { vm.showLicense = false }
+                com.nova.tv.ui.screens.LicenseScreen(vm, blocking = false) { vm.showLicense = false }
+            } else holder.SaveableStateProvider(key) {
                 when (route) {
                     Route.Splash -> SplashScreen(vm)
                     Route.Login -> LoginScreen(vm)

@@ -56,6 +56,8 @@ import java.util.UUID
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     val storage = Storage(app)
+    val license = com.nova.tv.data.LicenseManager(app)
+    var showLicense by mutableStateOf(false)
     val focus = FocusMemory()
 
     // ------------------------------------------------------------- Navigation
@@ -67,7 +69,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val selection = mutableStateMapOf<ContentType, String>()
 
     // ------------------------------------------------------------- Session
-    var client by mutableStateOf<XtreamClient?>(null)
+    var client by mutableStateOf<com.nova.tv.data.Source?>(null)
         private set
     var info by mutableStateOf<AccountInfo?>(null)
         private set
@@ -291,6 +293,27 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return connect(acc)
     }
 
+    /** Ajoute une playlist M3U (si c'est un lien Xtream déguisé, on passe en mode Xtream, plus complet). */
+    suspend fun addM3u(name: String, url: String, epg: String): String? {
+        val u = url.trim()
+        if (u.contains("username=") && u.contains("password=") && (u.contains("get.php") || u.contains("player_api.php"))) {
+            val q = u.substringAfter('?').split('&').associate { it.substringBefore('=') to java.net.URLDecoder.decode(it.substringAfter('=', ""), "UTF-8") }
+            val user = q["username"].orEmpty()
+            val pass = q["password"].orEmpty()
+            if (user.isNotBlank() && pass.isNotBlank()) return addAccount(name, u, user, pass)
+        }
+        val acc = Account(
+            id = UUID.randomUUID().toString(),
+            name = name.trim().ifBlank { u.substringAfter("://").substringBefore('/').substringBefore(':') },
+            server = u,
+            username = "",
+            password = "",
+            type = "m3u",
+            epgUrl = epg.trim(),
+        )
+        return connect(acc)
+    }
+
     private fun hostOf(server: String): String =
         normalizeServer(server).substringAfter("://").substringBefore(":").substringBefore("/")
 
@@ -300,7 +323,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         error = null
         loadingText = "Connexion au serveur…"
         try {
-            val c = XtreamClient(acc, getApplication<Application>().cacheDir)
+            val c: com.nova.tv.data.Source =
+                if (acc.type == "m3u") com.nova.tv.data.M3uClient(acc, getApplication<Application>().cacheDir)
+                else XtreamClient(acc, getApplication<Application>().cacheDir)
             if (force) c.clearCache()
             val inf = c.login()
             storage.upsertAccount(acc)
@@ -334,6 +359,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             replaceAll(Route.Main)
             viewModelScope.launch { loadTrending() }
             checkUpdate()
+            viewModelScope.launch { license.revalidateIfNeeded() }
             return null
         } catch (e: Exception) {
             val msg = when {
