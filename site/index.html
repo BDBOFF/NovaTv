@@ -1,0 +1,433 @@
+<title>SamothTV</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="SamothTV : le lecteur IPTV Xtream Codes pour Android TV, Google TV, Fire TV, box Android, téléphone et tablette.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout : une "salle de cinéma" — écran TV en vedette, puis rangées comme dans l'app, tarifs façon billetterie. */
+:root {
+  --bg: #08080a;
+  --bg-2: #111015;
+  --bg-3: #1b1a21;
+  --line: #2a2830;
+  --fg: #f4f3f6;
+  --muted: #a29fab;
+  --dim: #6d6a76;
+  --red: #d10a20;
+  --red-deep: #7a000f;
+  --gold: #ffc24b;
+  --green: #3ddc84;
+  --f-display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--f-body);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+.wrap {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { font-family: var(--f-display); font-weight: 800; text-transform: uppercase; letter-spacing: 0.01em; line-height: 0.95; margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--red); }
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-weight: 700; font-size: 15px; text-decoration: none;
+  padding: 13px 22px; border-radius: 999px; border: 1px solid transparent;
+  transition: transform .15s ease, background .15s ease, color .15s ease;
+}
+.btn:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
+.btn-red { background: linear-gradient(135deg, var(--red), var(--red-deep)); color: #fff; }
+.btn-red:hover { transform: translateY(-1px); }
+.btn-ghost { background: rgba(255,255,255,0.08); color: var(--fg); border-color: var(--line); }
+.btn-ghost:hover { background: var(--fg); color: var(--bg); }
+
+/* ---------- En-tête */
+header.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: rgba(8,8,10,0.86); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 21; background: var(--bg); }
+.top .wrap { display: flex; align-items: center; gap: 24px; height: 64px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand b { font-family: var(--f-display); font-weight: 900; font-size: 26px; letter-spacing: 0.02em; }
+.brand b span { color: var(--red); }
+nav.links { display: flex; gap: 22px; margin-left: auto; }
+nav.links a { text-decoration: none; color: var(--muted); font-weight: 600; font-size: 14px; }
+nav.links a:hover { color: var(--fg); }
+.top .btn { padding: 9px 16px; font-size: 14px; }
+@media (max-width: 820px) { nav.links { display: none; } .top .btn { margin-left: auto; } }
+
+/* ---------- Héros */
+.hero { position: relative; overflow: hidden; padding-block: 64px 40px; }
+.hero::before {
+  content: ""; position: absolute; inset: -20% -10% auto auto; width: 70%; height: 120%;
+  background: radial-gradient(closest-side, rgba(209,10,32,0.32), transparent 70%);
+  pointer-events: none;
+}
+.hero-grid { position: relative; display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 48px; align-items: center; }
+.hero h1 { font-size: clamp(54px, 8.5vw, 112px); font-weight: 900; }
+.hero h1 em { font-style: normal; color: transparent; -webkit-text-stroke: 2px var(--red); text-shadow: 0 0 22px rgba(209,10,32,0.55); }
+.hero .lead { margin-top: 22px; color: var(--muted); font-size: 18px; max-width: 34em; }
+.hero .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.hero .fine { margin-top: 16px; font-size: 13px; color: var(--dim); }
+@media (max-width: 900px) { .hero-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Maquette TV */
+.tv { position: relative; max-width: 100%; }
+.tv-screen {
+  aspect-ratio: 16 / 9; max-width: 100%;
+  border-radius: 14px; overflow: hidden; position: relative;
+  border: 10px solid #18171c; box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px var(--line);
+  background:
+    linear-gradient(90deg, #08080a 30%, rgba(8,8,10,0.4) 60%, transparent),
+    radial-gradient(120% 90% at 85% 10%, #4a1a12, #170708 55%, #08080a);
+  container-type: inline-size;
+}
+.tv-stand { width: 26%; height: 14px; margin: 0 auto; background: #18171c; border-radius: 0 0 10px 10px; }
+.ui-bar { display: flex; align-items: center; gap: 2.4cqw; padding: 2.2cqw 3.4cqw; font-size: 1.7cqw; font-weight: 600; color: var(--muted); }
+.ui-bar .logo { display: flex; align-items: center; gap: 0.8cqw; color: var(--fg); font-family: var(--f-display); font-weight: 900; font-size: 2.2cqw; }
+.ui-bar .logo i { width: 2.6cqw; height: 2.6cqw; border-radius: 0.6cqw; background: linear-gradient(135deg, var(--red), var(--red-deep)); display: inline-block; }
+.ui-bar .on { color: var(--fg); border-bottom: 0.25cqw solid var(--red); padding-bottom: 0.3cqw; }
+.ui-hero { padding: 1.4cqw 3.4cqw 0; width: 52%; }
+.ui-hero .t { font-family: var(--f-display); font-weight: 900; font-size: 5cqw; line-height: 0.9; text-transform: uppercase; }
+.ui-hero .m { margin-top: 1cqw; font-size: 1.5cqw; color: var(--muted); }
+.ui-hero .m b { color: var(--gold); font-weight: 600; }
+.ui-hero .b { display: flex; gap: 1cqw; margin-top: 1.6cqw; }
+.ui-hero .b span { font-size: 1.4cqw; font-weight: 700; padding: 0.8cqw 1.8cqw; border-radius: 99px; background: rgba(255,255,255,0.14); }
+.ui-hero .b span:first-child { background: linear-gradient(135deg, var(--red), var(--red-deep)); }
+.ui-rowt { padding: 2.6cqw 3.4cqw 0.8cqw; font-weight: 700; font-size: 1.9cqw; }
+.ui-row { display: flex; gap: 0.8cqw; padding-left: 3.4cqw; }
+.rk { display: flex; align-items: flex-end; flex: 0 0 auto; }
+.rk .n {
+  font-family: var(--f-display); font-weight: 900; font-size: 13cqw; line-height: 0.78;
+  color: #1a0003; -webkit-text-stroke: 0.25cqw var(--red); text-shadow: 0 0 1.4cqw rgba(209,10,32,0.6);
+  margin-right: -2.2cqw; letter-spacing: -0.06em;
+}
+.rk .p {
+  width: 9cqw; aspect-ratio: 2 / 3; border-radius: 0.8cqw; position: relative; z-index: 1;
+  display: flex; align-items: flex-end; padding: 0.8cqw; font-family: var(--f-display); font-weight: 800; font-size: 1.5cqw; line-height: 1; text-transform: uppercase;
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+.rk .p.focus { transform: scale(1.08); box-shadow: 0 0 0 0.3cqw #fff; }
+.rk .p .soon { position: absolute; left: 50%; bottom: -0.9cqw; transform: translateX(-50%); background: var(--red); font-family: var(--f-body); font-size: 0.9cqw; font-weight: 700; padding: 0.3cqw 0.7cqw; border-radius: 0.3cqw; white-space: nowrap; }
+.pa { background: linear-gradient(160deg, #2c5364, #0f2027); }
+.pb { background: linear-gradient(160deg, #b2452a, #3a0b06); }
+.pc { background: linear-gradient(160deg, #5b4a8a, #14102a); }
+.pd { background: linear-gradient(160deg, #c9a24a, #3b2a08); }
+.pe { background: linear-gradient(160deg, #3b6b45, #0b1f10); }
+
+/* Téléphone posé devant la TV */
+.phone {
+  position: absolute; right: -10px; bottom: -26px; width: 23%; min-width: 92px;
+  aspect-ratio: 9 / 19; border-radius: 16px; border: 5px solid #18171c; overflow: hidden;
+  background: linear-gradient(180deg, #5b2a1a 0%, #170708 46%, #08080a 60%);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+  container-type: inline-size;
+}
+.phone .ph-t { position: absolute; top: 36%; left: 0; right: 0; text-align: center; font-family: var(--f-display); font-weight: 900; font-size: 13cqw; text-transform: uppercase; line-height: 0.9; }
+.phone .ph-b { position: absolute; top: 49%; left: 50%; transform: translateX(-50%); font-size: 7cqw; font-weight: 700; padding: 2.5cqw 7cqw; border-radius: 99px; background: linear-gradient(135deg, var(--red), var(--red-deep)); white-space: nowrap; }
+.phone .ph-r { position: absolute; top: 64%; left: 6cqw; display: flex; gap: 3cqw; }
+.phone .ph-r i { width: 24cqw; aspect-ratio: 2/3; border-radius: 3cqw; display: block; }
+.phone .ph-nav { position: absolute; bottom: 0; left: 0; right: 0; height: 13cqw; background: var(--bg-2); display: flex; justify-content: space-around; align-items: center; }
+.phone .ph-nav i { width: 7cqw; height: 7cqw; border-radius: 2cqw; background: var(--dim); display: block; }
+.phone .ph-nav i:first-child { background: var(--red); }
+
+/* ---------- Appareils */
+.devices { border-block: 1px solid var(--line); background: var(--bg-2); }
+.devices .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; padding-block: 22px; }
+.devices .lbl { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.devices ul { display: flex; flex-wrap: wrap; gap: 10px 26px; margin: 0; padding: 0; list-style: none; font-weight: 600; }
+.devices li::before { content: "●"; color: var(--red); margin-right: 8px; font-size: 10px; vertical-align: 2px; }
+
+/* ---------- Sections */
+section.block { padding-block: 88px 0; }
+.sec-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: end; margin-bottom: 40px; }
+.sec-head h2 { font-size: clamp(40px, 6vw, 72px); }
+.sec-head p { color: var(--muted); max-width: 34em; }
+@media (max-width: 820px) { .sec-head { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Fonctions (rangées façon app) */
+.feat { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.feat article { background: var(--bg); padding: 28px 26px 30px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.feat .k { font-family: var(--f-mono); font-size: 12px; color: var(--red); letter-spacing: 0.08em; }
+.feat h3 { font-size: 30px; }
+.feat p { color: var(--muted); font-size: 15px; }
+@media (max-width: 900px) { .feat { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .feat { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Tarifs (billets) */
+.prices { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+.ticket {
+  position: relative; background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px;
+  padding: 24px 20px; display: flex; flex-direction: column; gap: 6px; min-width: 0;
+}
+.ticket::after {
+  content: ""; position: absolute; left: 14px; right: 14px; top: 62%;
+  border-top: 1px dashed var(--line);
+}
+.ticket .d { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.ticket .v { font-family: var(--f-display); font-weight: 900; font-size: 52px; line-height: 1; font-variant-numeric: tabular-nums; }
+.ticket .v small { font-size: 22px; }
+.ticket .per { font-size: 13px; color: var(--dim); min-height: 2.6em; }
+.ticket .go { margin-top: auto; padding-top: 26px; }
+.ticket .go .btn { width: 100%; justify-content: center; padding: 11px 14px; font-size: 14px; }
+.ticket.star { border-color: var(--red); background: linear-gradient(180deg, rgba(209,10,32,0.18), var(--bg-2) 55%); }
+.ticket.star .flag { position: absolute; top: -11px; left: 20px; background: var(--red); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 10px; border-radius: 4px; }
+@media (max-width: 1000px) { .prices { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .prices { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 400px) { .prices { grid-template-columns: minmax(0, 1fr); } }
+.trial {
+  margin-top: 18px; display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; justify-content: space-between;
+  padding: 20px 24px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-2);
+}
+.trial b { font-family: var(--f-display); font-size: 28px; font-weight: 800; text-transform: uppercase; }
+.trial p { color: var(--muted); font-size: 15px; }
+
+/* ---------- Installation */
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.step { border: 1px solid var(--line); border-radius: 14px; padding: 24px; background: var(--bg-2); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.step .n { font-family: var(--f-display); font-weight: 900; font-size: 54px; line-height: 0.8; color: #1a0003; -webkit-text-stroke: 2px var(--red); }
+.step h3 { font-size: 26px; }
+.step p { color: var(--muted); font-size: 15px; }
+.url {
+  display: flex; align-items: center; gap: 8px; margin-top: 4px;
+  font-family: var(--f-mono); font-size: 13px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 10px 10px 12px;
+}
+.url code { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.url button { font: inherit; font-family: var(--f-body); font-weight: 700; font-size: 12px; background: var(--bg-3); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.url button:focus-visible { outline: 2px solid var(--fg); }
+@media (max-width: 820px) { .steps { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- FAQ */
+.faq { display: grid; gap: 10px; max-width: 820px; }
+.faq details { border: 1px solid var(--line); border-radius: 12px; background: var(--bg-2); padding: 0 20px; }
+.faq summary { cursor: pointer; font-weight: 700; padding: 18px 0; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; color: var(--red); font-size: 22px; line-height: 1; }
+.faq details[open] summary::after { content: "–"; }
+.faq summary:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; border-radius: 4px; }
+.faq details p { color: var(--muted); padding-bottom: 18px; max-width: 64ch; }
+
+/* ---------- Pied */
+footer { margin-top: 96px; border-top: 1px solid var(--line); }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 32px; justify-content: space-between; padding-block: 32px 40px; font-size: 13px; color: var(--dim); }
+footer .legal { max-width: 60ch; }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="SamothTV, accueil">
+      <svg width="34" height="34" viewBox="0 0 64 64" aria-hidden="true">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d10a20"/><stop offset="1" stop-color="#7a000f"/></linearGradient></defs>
+        <rect width="64" height="64" rx="14" fill="url(#lg)"/>
+        <text x="27" y="47" text-anchor="middle" font-family="Big Shoulders Display, Impact, sans-serif" font-weight="900" font-size="48" fill="#08080a">S</text>
+        <text x="50" y="58" text-anchor="middle" font-family="Archivo, Arial, sans-serif" font-weight="800" font-size="13" fill="#ffffff">TV</text>
+      </svg>
+      <b>SAMOTH <span>TV</span></b>
+    </a>
+    <nav class="links" aria-label="Sections">
+      <a href="#fonctions">Fonctions</a>
+      <a href="#tarifs">Tarifs</a>
+      <a href="#installer">Installer</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-red" href="#installer">Essai gratuit</a>
+  </div>
+</header>
+
+<main id="top">
+  <!-- Héros -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <p class="eyebrow">Lecteur IPTV · Xtream Codes</p>
+        <h1>Votre IPTV<br>en mode <em>cinéma</em></h1>
+        <p class="lead">Entrez votre serveur, votre identifiant et votre mot de passe. SamothTV transforme votre abonnement en une vraie plateforme : affiches HD, tendances de la semaine, reprise de lecture, guide TV et replay.</p>
+        <div class="cta">
+          <a class="btn btn-red" href="#installer">Essayer 3 jours gratuitement</a>
+          <a class="btn btn-ghost" href="#tarifs">Voir les tarifs</a>
+        </div>
+        <p class="fine">Lecteur uniquement. Aucune chaîne ni aucun contenu n'est fourni avec l'application.</p>
+      </div>
+
+      <div class="tv" aria-label="Aperçu de l'interface SamothTV sur une télévision et un téléphone">
+        <div class="tv-screen" aria-hidden="true">
+          <div class="ui-bar">
+            <span class="logo"><i></i>SAMOTH</span>
+            <span class="on">Accueil</span><span>Films</span><span>Séries</span><span>TV Direct</span><span>Guide TV</span>
+          </div>
+          <div class="ui-hero">
+            <div class="t">La Marée Noire</div>
+            <div class="m"><b>★ 8.1</b> &nbsp;2026 · 2 h 04 · Thriller, Drame</div>
+            <div class="b"><span>▶ Lecture</span><span>Plus d'infos</span></div>
+          </div>
+          <div class="ui-rowt">Tendances de la semaine</div>
+          <div class="ui-row" id="row">
+            <div class="rk"><span class="n">1</span><div class="p pa">Orbite basse</div></div>
+            <div class="rk"><span class="n">2</span><div class="p pb">La Marée Noire</div></div>
+            <div class="rk"><span class="n">3</span><div class="p pc">Le Dernier Train<span class="soon">BIENTÔT</span></div></div>
+            <div class="rk"><span class="n">4</span><div class="p pd">Sable</div></div>
+            <div class="rk"><span class="n">5</span><div class="p pe">Forêt d'hiver</div></div>
+          </div>
+        </div>
+        <div class="tv-stand"></div>
+        <div class="phone" aria-hidden="true">
+          <div class="ph-t">Orbite<br>basse</div>
+          <div class="ph-b">▶ Lecture</div>
+          <div class="ph-r"><i class="pc"></i><i class="pd"></i><i class="pa"></i></div>
+          <div class="ph-nav"><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Appareils -->
+  <div class="devices">
+    <div class="wrap">
+      <span class="lbl">Une seule appli, tous vos écrans</span>
+      <ul>
+        <li>Android TV</li><li>Google TV</li><li>Fire TV</li><li>Box Android</li><li>Téléphone</li><li>Tablette</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Fonctions -->
+  <section class="block" id="fonctions">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Pensée pour le canapé</h2>
+        <p>Tout se pilote à la télécommande sur la TV, et au doigt sur le téléphone. L'interface s'adapte toute seule à l'écran.</p>
+      </div>
+      <div class="feat">
+        <article><span class="k">TOP 20</span><h3>Tendances de la semaine</h3><p>Le classement des films et séries du moment, avec les gros chiffres néon. Les titres que vous n'avez pas encore sont marqués « Bientôt ».</p></article>
+        <article><span class="k">FAVORIS</span><h3>Bientôt, puis disponible</h3><p>Ajoutez un film en salle à vos favoris. Dès que votre fournisseur l'ajoute, il passe en « Disponible ».</p></article>
+        <article><span class="k">REPRISE</span><h3>Reprendre la lecture</h3><p>Films et épisodes repartent là où vous les avez laissés. L'épisode suivant se lance tout seul, avec « Passer l'intro ».</p></article>
+        <article><span class="k">EN DIRECT</span><h3>TV Direct vivante</h3><p>Aperçu vidéo de la chaîne sélectionnée, programme en cours avec sa progression, et rangée des matchs du jour.</p></article>
+        <article><span class="k">EPG</span><h3>Guide TV et replay</h3><p>Grille sur quatre heures, retour en arrière sur les chaînes compatibles, zapping avec CH+ et CH−.</p></article>
+        <article><span class="k">EXPLORER</span><h3>Sagas, genres, années</h3><p>Marvel, James Bond, Harry Potter regroupés dans l'ordre. Parcourez aussi par genre ou par année de sortie.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tarifs -->
+  <section class="block" id="tarifs">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Choisissez votre séance</h2>
+        <p>Une licence fonctionne sur deux appareils, par exemple votre TV et votre téléphone. Annulable à tout moment.</p>
+      </div>
+      <div class="prices">
+        <div class="ticket"><span class="d">1 mois</span><span class="v">2,99<small>€</small></span><span class="per">Sans engagement</span><div class="go"><a class="btn btn-ghost" href="#installer">Choisir</a></div></div>
+        <div class="ticket"><span class="d">3 mois</span><span class="v">6,99<small>€</small></span><span class="per">soit 2,33 € par mois</span><div class="go"><a class="btn btn-ghost" href="#installer">Choisir</a></div></div>
+        <div class="ticket"><span class="d">6 mois</span><span class="v">11,99<small>€</small></span><span class="per">soit 2,00 € par mois</span><div class="go"><a class="btn btn-ghost" href="#installer">Choisir</a></div></div>
+        <div class="ticket star"><span class="flag">Le plus choisi</span><span class="d">1 an</span><span class="v">19,99<small>€</small></span><span class="per">soit 1,67 € par mois</span><div class="go"><a class="btn btn-red" href="#installer">Choisir</a></div></div>
+        <div class="ticket"><span class="d">À vie</span><span class="v">34,99<small>€</small></span><span class="per">Paiement unique, mises à jour comprises</span><div class="go"><a class="btn btn-ghost" href="#installer">Choisir</a></div></div>
+      </div>
+      <div class="trial">
+        <div><b>3 jours offerts</b><p>Installez l'appli et testez tout, sans carte bancaire.</p></div>
+        <a class="btn btn-red" href="#installer">Commencer l'essai</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Installation -->
+  <section class="block" id="installer">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Installé en deux minutes</h2>
+        <p>SamothTV s'installe directement, sans passer par un magasin d'applications. Le lien est le même pour tous les appareils.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <span class="n">1</span>
+          <h3>Sur la TV</h3>
+          <p>Installez l'appli gratuite « Downloader » depuis le magasin de votre TV ou de votre Fire TV, puis tapez ce lien :</p>
+          <div class="url"><code id="dl">github.com/BDBOFF/novatv/releases/latest/download/NovaTV.apk</code><button type="button" id="copy" aria-describedby="dl">Copier</button></div>
+        </div>
+        <div class="step">
+          <span class="n">2</span>
+          <h3>Sur le téléphone</h3>
+          <p>Ouvrez le même lien dans Chrome, puis ouvrez le fichier téléchargé. Autorisez l'installation quand Android le demande.</p>
+          <a class="btn btn-ghost" href="https://github.com/BDBOFF/novatv/releases/latest/download/NovaTV.apk" rel="noopener">Télécharger l'APK</a>
+        </div>
+        <div class="step">
+          <span class="n">3</span>
+          <h3>Connectez-vous</h3>
+          <p>Entrez l'adresse de votre serveur, votre identifiant et votre mot de passe Xtream Codes. Vos 3 jours d'essai démarrent.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="block" id="faq">
+    <div class="wrap">
+      <div class="sec-head"><h2>Questions</h2><p></p></div>
+      <div class="faq">
+        <details><summary>SamothTV fournit-il des chaînes ou des films ?</summary><p>Non. SamothTV est un lecteur. Il faut un abonnement IPTV au format Xtream Codes, que vous avez le droit d'utiliser. L'appli ne contient aucune chaîne, aucune playlist et aucun contenu.</p></details>
+        <details><summary>Sur quels appareils fonctionne-t-il ?</summary><p>Android TV, Google TV, Fire TV, box Android, téléphones et tablettes Android (Android 5 ou plus récent). L'iPhone et l'iPad ne sont pas pris en charge pour le moment.</p></details>
+        <details><summary>Que se passe-t-il à la fin de l'essai ?</summary><p>L'appli vous propose de choisir une formule. Rien n'est prélevé automatiquement : vous ne payez que si vous choisissez.</p></details>
+        <details><summary>Comment recevoir les mises à jour ?</summary><p>Un bouton « Mise à jour disponible » apparaît dans l'appli. Un clic, et la nouvelle version s'installe en gardant vos réglages et vos favoris.</p></details>
+        <details><summary>Les affiches et résumés sont-ils en français ?</summary><p>Oui. Fonds d'écran HD, logos des titres, résumés et distribution s'affichent en français, même si votre fournisseur donne peu d'informations.</p></details>
+        <details><summary>Ma connexion est refusée, que faire ?</summary><p>Vérifiez l'adresse du serveur, port compris (par exemple :8080). Certains fournisseurs bloquent les réseaux mobiles ou les VPN : essayez depuis votre Wi-Fi.</p></details>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 SamothTV · Édité par ML Concept</span>
+    <span class="legal">SamothTV est un lecteur multimédia. Il ne fournit, n'héberge et ne vend aucun contenu audiovisuel. Utilisez-le uniquement avec des sources auxquelles vous avez légalement accès.</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  // Simule la navigation à la télécommande dans la rangée "Tendances"
+  var posters = document.querySelectorAll('#row .p');
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var i = 1;
+  if (posters.length) posters[i].classList.add('focus');
+  if (!reduce && posters.length) {
+    setInterval(function () {
+      posters[i].classList.remove('focus');
+      i = (i + 1) % posters.length;
+      posters[i].classList.add('focus');
+    }, 1700);
+  }
+  // Copie du lien de téléchargement
+  var btn = document.getElementById('copy');
+  var code = document.getElementById('dl');
+  if (btn && code) {
+    btn.addEventListener('click', function () {
+      var text = code.textContent;
+      var done = function () { btn.textContent = 'Copié'; setTimeout(function () { btn.textContent = 'Copier'; }, 1600); };
+      var fallback = function () {
+        var r = document.createRange(); r.selectNodeContents(code);
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        btn.textContent = 'Sélectionné';
+      };
+      try {
+        navigator.clipboard.writeText(text).then(done, fallback);
+      } catch (e) { fallback(); }
+    });
+  }
+})();
+</script>

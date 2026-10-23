@@ -30,7 +30,8 @@ class Storage(context: Context) {
     var history by mutableStateOf(read<List<History>>("history") ?: emptyList())
         private set
 
-    private val _tmdb = mutableStateOf(prefs.getString("tmdb", null) ?: BuildConfig.TMDB_API_KEY)
+    // Clé TMDB intégrée à l'app (aucun réglage visible)
+    private val _tmdb = mutableStateOf(BuildConfig.TMDB_API_KEY)
     var tmdbKey: String
         get() = _tmdb.value
         set(v) {

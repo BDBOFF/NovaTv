@@ -49,7 +49,6 @@ private enum class Section(val label: String) {
     ACCOUNT("Compte"),
     PLAYLISTS("Playlists"),
     PLAYBACK("Lecture & affichage"),
-    METADATA("Affiches & fiches"),
     ADVANCED("Avancé"),
     ABOUT("Mise à jour & infos"),
 }
@@ -74,7 +73,6 @@ fun SettingsScreen(vm: AppViewModel) {
                 Section.ACCOUNT -> AccountSection(vm)
                 Section.PLAYLISTS -> PlaylistsSection(vm)
                 Section.PLAYBACK -> PlaybackSection(vm)
-                Section.METADATA -> MetadataSection(vm)
                 Section.ADVANCED -> AdvancedSection(vm)
                 Section.ABOUT -> AboutSection(vm)
             }
@@ -225,28 +223,6 @@ private fun PlaybackSection(vm: AppViewModel) {
         vm.storage.activeId?.let { vm.storage.clearHistory(it) }
         Toast.makeText(context, "Historique effacé", Toast.LENGTH_SHORT).show()
     })
-}
-
-@Composable
-private fun MetadataSection(vm: AppViewModel) {
-    var key by remember { mutableStateOf(vm.storage.tmdbKey) }
-    val context = LocalContext.current
-    Text(
-        "SamothTV utilise The Movie Database (TMDB) pour les fonds d'écran, logos de titres, résumés en français, " +
-            "distribution et tendances. Créez une clé gratuite sur themoviedb.org → Paramètres → API, puis collez-la ici " +
-            "(clé API v3 ou jeton d'accès v4).",
-        style = Type.Body, color = Nova.Muted,
-    )
-    InfoRow("État", if (vm.storage.tmdbKey.isBlank()) "Non configuré" else "Activé", if (vm.storage.tmdbKey.isBlank()) Nova.Gold else Nova.Green)
-    TvTextField("Clé TMDB", key, { key = it }, placeholder = "Collez votre clé ici", imeAction = ImeAction.Done)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        NovaButton("Enregistrer", onClick = {
-            vm.storage.tmdbKey = key
-            Toast.makeText(context, "Clé enregistrée. Actualisation…", Toast.LENGTH_SHORT).show()
-            vm.refresh()
-        }, primary = true)
-        NovaButton("Retirer la clé", onClick = { key = ""; vm.storage.tmdbKey = "" })
-    }
 }
 
 @Composable
