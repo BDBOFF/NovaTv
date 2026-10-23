@@ -35,6 +35,22 @@ class LicenseManager(private val context: Context) {
         private const val OFFLINE_GRACE = 14L * 24 * 3600 * 1000
         /** Empreinte du code propriétaire (le code lui-même n'est pas dans le code source). */
         private const val OWNER_HASH = "cbe6f742feff6099e9c2debabfb95ffdea09930e3d623e91280f7ac8bbe8ac0f"
+        /**
+         * Codes cadeau "à vie" (famille, amis). Seules leurs empreintes sont ici.
+         * Pour révoquer un code : retirer sa ligne, l'appli se reverrouille à la mise à jour suivante.
+         */
+        private val GIFT_HASHES = mapOf(
+            "7ad2fe95e0296f138b56ebec13b55f8893db2658021e03a4ad88042d7683b7e2" to "Cadeau 1",
+            "f56ea337a6b4ec6602325f346abd67779a6c90c96c0699353a98137d286a39e4" to "Cadeau 2",
+            "70c7c3267bd32eb2b6c9cd5336050aa3f40c712f1c96b819de0d63095a9b4184" to "Cadeau 3",
+            "7473dc372bb37026fc5214e13ca80d4bc7b74b8839de6cd9219e651a92ce9b88" to "Cadeau 4",
+            "25bccbb4a3a9628e72cfb404c6810d3417ef6734da8819e1fd96fab9f5abd983" to "Cadeau 5",
+            "41fdf31352f96a80033904e39849c402ccf085043cad96547693556512b25183" to "Cadeau 6",
+            "6097b09c13fc8864392dfcaa2950aa1ee1a26ddcb2418e73e55765b3c7758605" to "Cadeau 7",
+            "f2a1727407bfbeedbd5367201c746ca6f617e56821f3248c6d15f2865db59e70" to "Cadeau 8",
+            "9a2c64d93978941dbb4aa3f4baa1c422cccad734bbf058286ed37a14d979c178" to "Cadeau 9",
+            "d3ffc1f0a4617e1889ae1958b7620389a5a97ff0c16b96bcaca416f107f208dd" to "Cadeau 10",
+        )
 
         val offers = listOf(
             Offer("1m", "1 mois", "2,99 €", "Sans engagement"),
@@ -71,7 +87,13 @@ class LicenseManager(private val context: Context) {
     fun refresh() {
         val now = System.currentTimeMillis()
         if (isOwner) {
-            state = State.ACTIVE; return
+            val used = prefs.getString("ownerHash", OWNER_HASH)
+            if (used == OWNER_HASH || GIFT_HASHES.containsKey(used)) {
+                state = State.ACTIVE; return
+            }
+            // code cadeau révoqué
+            prefs.edit().putBoolean("owner", false).remove("ownerHash").remove("plan").apply()
+            plan = null
         }
         if (key != null) {
             val lastOk = prefs.getLong("lastOk", 0L)
@@ -126,9 +148,11 @@ class LicenseManager(private val context: Context) {
     suspend fun activate(input: String): String? {
         val code = input.trim()
         if (code.isEmpty()) return "Saisissez votre clé."
-        if (sha256(code.uppercase()) == OWNER_HASH) {
-            prefs.edit().putBoolean("owner", true).apply()
-            plan = "Propriétaire"
+        val h = sha256(code.uppercase())
+        if (h == OWNER_HASH || GIFT_HASHES.containsKey(h)) {
+            val label = if (h == OWNER_HASH) "Propriétaire" else "Licence offerte à vie"
+            prefs.edit().putBoolean("owner", true).putString("ownerHash", h).putString("plan", label).apply()
+            plan = label
             refresh()
             return null
         }
