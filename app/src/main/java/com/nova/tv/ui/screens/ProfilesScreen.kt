@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -561,6 +562,55 @@ fun BusyDialog(vm: AppViewModel) {
                 NovaButton("Changer de profil", onClick = { vm.busyWarning = null; vm.navigate(Route.Profiles) }, primary = true, focusRequester = play)
                 NovaButton("Lancer quand même", onClick = { vm.confirmBusyPlay() })
                 NovaButton("Annuler", onClick = { vm.busyWarning = null })
+            }
+        }
+    }
+}
+
+/** "Reprendre ou recommencer ?" avant de relancer un film ou un épisode déjà commencé. */
+@Composable
+fun ResumeDialog(vm: AppViewModel) {
+    val ask = vm.resumeAsk ?: return
+    val resume = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        delay(100); runCatching { resume.requestFocus() }
+    }
+    BackHandler { vm.resumeAsk = null }
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.75f)), contentAlignment = Alignment.Center) {
+        Column(
+            Modifier
+                .padding(20.dp)
+                .widthIn(max = 520.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(Nova.Surface)
+                .border(1.dp, Nova.Line, RoundedCornerShape(18.dp))
+                .padding(26.dp),
+        ) {
+            Text(ask.title, style = Type.H1, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Vous vous êtes arrêté à ${com.nova.tv.ui.components.formatPosition(ask.position)}" +
+                    (if (ask.duration > 0) " sur ${com.nova.tv.ui.components.formatPosition(ask.duration)}." else "."),
+                style = Type.Body, color = Nova.Muted,
+            )
+            if (ask.duration > 0) {
+                Spacer(Modifier.height(10.dp))
+                com.nova.tv.ui.components.ProgressLine(ask.position.toFloat() / ask.duration, Modifier.fillMaxWidth())
+            }
+            Spacer(Modifier.height(20.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                NovaButton(
+                    "Reprendre à ${com.nova.tv.ui.components.formatPosition(ask.position)}",
+                    onClick = { vm.answerResume(fromStart = false) },
+                    glyph = { c -> com.nova.tv.ui.components.PlayGlyph(c, 13.dp) },
+                    primary = true, focusRequester = resume,
+                )
+                NovaButton(
+                    "Recommencer",
+                    onClick = { vm.answerResume(fromStart = true) },
+                    icon = androidx.compose.material.icons.Icons.Filled.Refresh,
+                )
+                NovaButton("Annuler", onClick = { vm.resumeAsk = null })
             }
         }
     }

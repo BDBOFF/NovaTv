@@ -1135,7 +1135,27 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         guardedPlay(Route.Player(PlaySession(listOf(item), 0)))
     }
 
-    fun playMovie(m: Movie, fromStart: Boolean = false) {
+    /** Question "Reprendre ou recommencer ?" en attente. */
+    data class ResumeAsk(val title: String, val position: Long, val duration: Long, val resume: Route.Player, val start: Route.Player)
+
+    var resumeAsk by mutableStateOf<ResumeAsk?>(null)
+
+    fun answerResume(fromStart: Boolean) {
+        val a = resumeAsk ?: return
+        resumeAsk = null
+        guardedPlay(if (fromStart) a.start else a.resume)
+    }
+
+    private fun playOrAsk(session: PlaySession, title: String, ask: Boolean, duration: Long) {
+        if (ask && session.startPosition > 0) {
+            resumeAsk = ResumeAsk(
+                title, session.startPosition, duration,
+                Route.Player(session), Route.Player(session.copy(startPosition = 0)),
+            )
+        } else guardedPlay(Route.Player(session))
+    }
+
+    fun playMovie(m: Movie, fromStart: Boolean = false, ask: Boolean = true) {
         val c = client ?: return
         val d = cachedDetails(Kind.MOVIE, m.id)
         val item = PlayItem(
@@ -1143,11 +1163,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             subtitle = listOfNotNull(m.year, d?.genres?.firstOrNull()).joinToString(" · "),
             image = d?.backdrop ?: m.poster, ext = m.ext,
         )
-        val resume = if (fromStart) 0L else resumeOf(Kind.MOVIE, m.id)?.takeIf { it.progress < 0.95f }?.position ?: 0L
-        guardedPlay(Route.Player(PlaySession(listOf(item), 0, resume)))
+        val h = if (fromStart) null else resumeOf(Kind.MOVIE, m.id)?.takeIf { it.progress < 0.95f }
+        playOrAsk(PlaySession(listOf(item), 0, h?.position ?: 0L), m.title, ask, h?.duration ?: 0L)
     }
 
-    fun playEpisode(s: Series, content: SeriesContent, ep: Episode, fromStart: Boolean = false) {
+    fun playEpisode(s: Series, content: SeriesContent, ep: Episode, fromStart: Boolean = false, ask: Boolean = true) {
         val c = client ?: return
         val backdrop = cachedDetails(Kind.SERIES, s.id)?.backdrop
         val all = content.all
@@ -1159,9 +1179,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             )
         }
         val idx = items.indexOfFirst { it.id == ep.id }.coerceAtLeast(0)
-        val resume = if (fromStart) 0L else resumeOf(Kind.EPISODE, ep.id)?.takeIf { it.progress < 0.95f }?.position ?: 0L
+        val h = if (fromStart) null else resumeOf(Kind.EPISODE, ep.id)?.takeIf { it.progress < 0.95f }
         if (items.isEmpty()) return
-        guardedPlay(Route.Player(PlaySession(items, idx, resume)))
+        playOrAsk(PlaySession(items, idx, h?.position ?: 0L), "${s.title} · S${ep.season} É${ep.number}", ask, h?.duration ?: 0L)
     }
 
     /** Lance la reprise depuis une tuile "Reprendre la lecture". */

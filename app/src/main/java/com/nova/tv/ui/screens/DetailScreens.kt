@@ -264,7 +264,7 @@ fun MovieDetailScreen(vm: AppViewModel, id: Int) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         NovaButton(
                             if (resume != null) "Reprendre" else "Lecture",
-                            onClick = { vm.playMovie(movie) },
+                            onClick = { vm.playMovie(movie, ask = false) },
                             glyph = { c -> PlayGlyph(c, 13.dp) },
                             primary = true,
                             focusRequester = playRequester,
@@ -373,12 +373,15 @@ fun SeriesDetailScreen(vm: AppViewModel, id: Int) {
                         }
                         NovaButton(
                             label,
-                            onClick = { if (c != null && target != null) vm.playEpisode(series, c, target) },
+                            onClick = { if (c != null && target != null) vm.playEpisode(series, c, target, ask = false) },
                             glyph = { col -> PlayGlyph(col, 13.dp) },
                             primary = true,
                             focusRequester = playRequester,
                             memoryKey = "play",
                         )
+                        if (resumeSame && c != null && target != null) {
+                            NovaButton("Depuis le début", onClick = { vm.playEpisode(series, c, target, fromStart = true) }, icon = Icons.Filled.Refresh, memoryKey = "restart")
+                        }
                         NovaButton(
                             if (fav) "Dans les favoris" else "Favoris",
                             onClick = { vm.toggleFav(Kind.SERIES, id, series.title, series.cover) },

@@ -155,6 +155,7 @@ fun AppRoot(vm: AppViewModel) {
                 }
             }
             if (vm.busyWarning != null) com.nova.tv.ui.screens.BusyDialog(vm)
+            if (vm.resumeAsk != null) com.nova.tv.ui.screens.ResumeDialog(vm)
         }
     }
 }

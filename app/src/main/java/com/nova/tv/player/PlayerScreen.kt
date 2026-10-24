@@ -848,6 +848,7 @@ private fun VodOverlay(
     onSkipIntro: () -> Unit,
     onSeekTo: (Float) -> Unit,
 ) {
+    val onRestart = { onSeekTo(0f) }
     Box(Modifier.fillMaxSize()) {
         TopInfo(item.title, item.subtitle, now)
         Column(
@@ -865,6 +866,7 @@ private fun VodOverlay(
             Spacer(Modifier.height(18.dp))
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 ControlButton("", onToggle, onFocusAny) { c -> if (isPlaying) PauseGlyph(c, 14.dp) else PlayGlyph(c, 14.dp) }
+                ControlButton("", onRestart, onFocusAny) { c -> Icon(Icons.Filled.Refresh, "Recommencer", tint = c, modifier = Modifier.size(18.dp)) }
                 if (isEpisode && position in 0..300_000) {
                     ControlButton("Passer l'intro", onSkipIntro, onFocusAny) { c -> PlayGlyph(c, 12.dp) }
                 } else {
