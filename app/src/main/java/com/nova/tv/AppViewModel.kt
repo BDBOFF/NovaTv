@@ -388,14 +388,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         seriesById = series.associateBy { it.id }
         channelsById = channels.associateBy { it.id }
         val map = HashMap<String, Int>()
-        channels.forEach { map.merge("L:${it.categoryId}", 1, Int::plus) }
-        movies.forEach { map.merge("M:${it.categoryId}", 1, Int::plus) }
-        series.forEach { map.merge("S:${it.categoryId}", 1, Int::plus) }
+        channels.forEach { val k = "L:${it.categoryId}"; map[k] = (map[k] ?: 0) + 1 }
+        movies.forEach { val k = "M:${it.categoryId}"; map[k] = (map[k] ?: 0) + 1 }
+        series.forEach { val k = "S:${it.categoryId}"; map[k] = (map[k] ?: 0) + 1 }
         counts = map
         moviesByTmdb = movies.mapNotNull { m -> m.tmdbId?.takeIf { it != "0" }?.let { it to m } }.toMap()
         moviesByNorm = movies.groupBy { Titles.normalize(it.title) }
         seriesByTmdb = series.mapNotNull { x -> x.tmdbId?.takeIf { it != "0" }?.let { it to x } }.toMap()
         seriesByNorm = series.groupBy { Titles.normalize(it.title) }
+        railsCache.clear()
+        vis() // prépare tout de suite les listes triées et l'index de recherche
     }
 
     fun refresh() {
@@ -476,19 +478,67 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return list.filter { isAdult(it) }.map { it.id }.toSet()
     }
 
-    fun visibleMovies(): List<Movie> {
-        val hidden = hiddenCategoryIds(ContentType.MOVIE)
-        return if (hidden.isEmpty()) movies else movies.filter { it.categoryId !in hidden }
+    /**
+     * Listes visibles pré-calculées une seule fois (triées, groupées, index de recherche),
+     * pour que la navigation et la recherche soient instantanées même sur une petite box.
+     */
+    class Vis(
+        val key: List<Any>,
+        val movies: List<Movie>,
+        val series: List<Series>,
+        val channels: List<Channel>,
+        val moviesByAdded: List<Movie>,
+        val seriesByModified: List<Series>,
+        val moviesByCat: Map<String?, List<Movie>>,
+        val seriesByCat: Map<String?, List<Series>>,
+        val movieNorm: Array<String>,
+        val seriesNorm: Array<String>,
+        val channelNorm: Array<String>,
+    ) {
+        val extra = java.util.concurrent.ConcurrentHashMap<String, Any>()
     }
 
-    fun visibleSeries(): List<Series> {
-        val hidden = hiddenCategoryIds(ContentType.SERIES)
-        return if (hidden.isEmpty()) series else series.filter { it.categoryId !in hidden }
+    @Volatile
+    private var visCache: Vis? = null
+
+    fun vis(): Vis {
+        val m = movies
+        val se = series
+        val ch = channels
+        val adult = storage.showAdult
+        val key = listOf(System.identityHashCode(m), System.identityHashCode(se), System.identityHashCode(ch), adult)
+        visCache?.takeIf { it.key == key }?.let { return it }
+        synchronized(this) {
+            visCache?.takeIf { it.key == key }?.let { return it }
+            val hm = if (adult) emptySet() else movieCategories.filter { isAdult(it) }.map { it.id }.toSet()
+            val hs = if (adult) emptySet() else seriesCategories.filter { isAdult(it) }.map { it.id }.toSet()
+            val hl = if (adult) emptySet() else liveCategories.filter { isAdult(it) }.map { it.id }.toSet()
+            val vm = if (hm.isEmpty()) m else m.filter { it.categoryId !in hm }
+            val vs = if (hs.isEmpty()) se else se.filter { it.categoryId !in hs }
+            val vc = if (hl.isEmpty()) ch else ch.filter { it.categoryId !in hl }
+            val byAdded = vm.sortedByDescending { it.added }
+            val byMod = vs.sortedByDescending { it.lastModified }
+            val v = Vis(
+                key, vm, vs, vc, byAdded, byMod,
+                byAdded.groupBy { it.categoryId }, byMod.groupBy { it.categoryId },
+                Array(vm.size) { Titles.normalize(vm[it].title) },
+                Array(vs.size) { Titles.normalize(vs[it].title) },
+                Array(vc.size) { Titles.normalize(vc[it].displayName) },
+            )
+            visCache = v
+            return v
+        }
     }
 
-    fun visibleChannels(): List<Channel> {
-        val hidden = hiddenCategoryIds(ContentType.LIVE)
-        return if (hidden.isEmpty()) channels else channels.filter { it.categoryId !in hidden }
+    fun visibleMovies(): List<Movie> = vis().movies
+    fun visibleSeries(): List<Series> = vis().series
+    fun visibleChannels(): List<Channel> = vis().channels
+
+    /** Rangées déjà calculées par page : le changement d'onglet est immédiat. */
+    val railsCache = java.util.concurrent.ConcurrentHashMap<Scope, List<Rail>>()
+
+    suspend fun railsFor(scope: Scope): List<Rail> = withContext(Dispatchers.Default) {
+        buildRails(scope).also { railsCache[scope] = it }
     }
 
     fun count(type: ContentType, catId: String) = counts["${prefixOf(type)}:$catId"] ?: 0
@@ -642,7 +692,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private var moviesByNorm: Map<String, List<Movie>> = emptyMap()
     private var seriesByTmdb: Map<String, Series> = emptyMap()
     private var seriesByNorm: Map<String, List<Series>> = emptyMap()
-    private val tmdbItems = HashMap<String, TmdbItem>()
+    private val tmdbItems = java.util.concurrent.ConcurrentHashMap<String, TmdbItem>()
 
     fun tmdbItem(kind: String, id: Int): TmdbItem? = tmdbItems["$kind:$id"]
 
@@ -712,8 +762,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var sagas by mutableStateOf<List<com.nova.tv.data.Saga>>(emptyList())
         private set
-    private val genreCovers = HashMap<String, String>()
-    private val genreLoading = HashSet<String>()
+    private val genreCovers = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val genreLoading: MutableSet<String> = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
     private val genreResults = HashMap<String, List<Tile>>()
 
     private suspend fun loadSagas() {
@@ -800,7 +850,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun yearRail(scope: Scope): Rail? {
+    private fun yearRail(scope: Scope): Rail? =
+        (vis().extra.getOrPut("years_$scope") { computeYearRail(scope) ?: Unit } as? Rail)
+
+    private fun computeYearRail(scope: Scope): Rail? {
         val years = HashMap<Int, MutableList<Pair<String?, Double>>>()
         if (scope != Scope.SERIES) visibleMovies().forEach { m ->
             m.year?.toIntOrNull()?.let { y -> years.getOrPut(y) { ArrayList() }.add(m.poster to (m.rating ?: 0.0)) }
@@ -863,7 +916,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun currentYear() = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
 
-    private fun topRatedMovies(n: Int): List<Movie> {
+    @Suppress("UNCHECKED_CAST")
+    private fun topRatedMovies(n: Int): List<Movie> = vis().extra.getOrPut("topM$n") { computeTopMovies(n) } as List<Movie>
+
+    @Suppress("UNCHECKED_CAST")
+    private fun topRatedSeries(n: Int): List<Series> = vis().extra.getOrPut("topS$n") { computeTopSeries(n) } as List<Series>
+
+    private fun computeTopMovies(n: Int): List<Movie> {
         val pool = visibleMovies().filter { (it.rating ?: 0.0) in 5.0..9.6 }
         val recent = pool.filter { (it.year?.toIntOrNull() ?: 0) >= currentYear() - 4 }
         val src = if (recent.size >= n) recent else pool
@@ -871,7 +930,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             .distinctBy { Titles.normalize(it.title) }.take(n)
     }
 
-    private fun topRatedSeries(n: Int): List<Series> {
+    private fun computeTopSeries(n: Int): List<Series> {
         val pool = visibleSeries().filter { (it.rating ?: 0.0) in 5.0..9.6 }
         val recent = pool.filter { (it.year?.toIntOrNull() ?: 0) >= currentYear() - 4 }
         val src = if (recent.size >= n) recent else pool
@@ -1000,14 +1059,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (wantM && vm.isNotEmpty()) {
             rails += Rail(
                 "recent_m", "Films récemment ajoutés", RailStyle.POSTER,
-                vm.sortedByDescending { it.added }.take(24).map { movieTile(it) },
+                vis().moviesByAdded.take(24).map { movieTile(it) },
                 SeeAll(MainTab.MOVIES, Special.RECENT),
             )
         }
         if (wantS && vs.isNotEmpty()) {
             rails += Rail(
                 "recent_s", "Séries mises à jour", RailStyle.POSTER,
-                vs.sortedByDescending { it.lastModified }.take(24).map { seriesTile(it) },
+                vis().seriesByModified.take(24).map { seriesTile(it) },
                 SeeAll(MainTab.SERIES, Special.RECENT),
             )
         }
@@ -1021,21 +1080,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // 6. Catégories
         val catLimit = if (scope == Scope.ALL) 4 else 40
         if (wantM) {
-            val byCat = vm.groupBy { it.categoryId }
+            val byCat = vis().moviesByCat
             categoriesOf(ContentType.MOVIE).filter { (byCat[it.id]?.size ?: 0) >= 4 }.take(catLimit).forEach { cat ->
                 rails += Rail(
                     "mc_${cat.id}", cat.name, RailStyle.POSTER,
-                    byCat[cat.id].orEmpty().sortedByDescending { it.added }.take(20).map { movieTile(it) },
+                    byCat[cat.id].orEmpty().take(20).map { movieTile(it) },
                     SeeAll(MainTab.MOVIES, cat.id),
                 )
             }
         }
         if (wantS) {
-            val byCat = vs.groupBy { it.categoryId }
+            val byCat = vis().seriesByCat
             categoriesOf(ContentType.SERIES).filter { (byCat[it.id]?.size ?: 0) >= 4 }.take(if (scope == Scope.ALL) 3 else 40).forEach { cat ->
                 rails += Rail(
                     "sc_${cat.id}", cat.name, RailStyle.POSTER,
-                    byCat[cat.id].orEmpty().sortedByDescending { it.lastModified }.take(20).map { seriesTile(it) },
+                    byCat[cat.id].orEmpty().take(20).map { seriesTile(it) },
                     SeeAll(MainTab.SERIES, cat.id),
                 )
             }
@@ -1231,13 +1290,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     suspend fun search(query: String): SearchResult = withContext(Dispatchers.Default) {
         val q = Titles.normalize(query)
         if (q.length < 2) return@withContext SearchResult(emptyList(), emptyList(), emptyList())
-        val m = visibleMovies().asSequence().filter { Titles.normalize(it.title).contains(q) }
-            .sortedWith(compareBy<Movie> { !Titles.normalize(it.title).startsWith(q) }.thenByDescending { it.added })
-            .take(40).toList()
-        val s = visibleSeries().asSequence().filter { Titles.normalize(it.title).contains(q) }
-            .sortedWith(compareBy<Series> { !Titles.normalize(it.title).startsWith(q) }.thenByDescending { it.lastModified })
-            .take(40).toList()
-        val c = visibleChannels().asSequence().filter { Titles.normalize(it.displayName).contains(q) }.take(40).toList()
-        SearchResult(m, s, c)
+        val v = vis()
+        fun <T> find(items: List<T>, norm: Array<String>, rank: (T) -> Long, limit: Int): List<T> {
+            val starts = ArrayList<Int>()
+            val contains = ArrayList<Int>()
+            for (i in norm.indices) {
+                val n = norm[i]
+                if (n.startsWith(q)) starts += i else if (n.contains(q)) contains += i
+            }
+            val pick = starts.sortedByDescending { rank(items[it]) } + contains.sortedByDescending { rank(items[it]) }
+            return pick.take(limit).map { items[it] }
+        }
+        SearchResult(
+            find(v.movies, v.movieNorm, { it.added }, 60),
+            find(v.series, v.seriesNorm, { it.lastModified }, 60),
+            find(v.channels, v.channelNorm, { 0L }, 60),
+        )
     }
 }

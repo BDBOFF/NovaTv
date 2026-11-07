@@ -34,6 +34,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -151,15 +153,22 @@ private fun TopBar(vm: AppViewModel, requesters: Map<MainTab, FocusRequester>) {
 @Composable
 private fun TabItem(vm: AppViewModel, tab: MainTab, requester: FocusRequester, label: String?, icon: ImageVector?) {
     val selected = vm.tab == tab
+    // L'onglet ne change qu'après un court arrêt dessus : traverser la barre ne charge pas chaque page
+    var hasFocus by remember { mutableStateOf(false) }
+    LaunchedEffect(hasFocus) {
+        if (hasFocus && vm.tab != tab) {
+            delay(320)
+            vm.tab = tab
+        }
+    }
     FocusBox(
         onClick = { vm.tab = tab },
-        onFocused = { if (vm.tab != tab) vm.tab = tab },
         focusRequester = requester,
         shape = RoundedCornerShape(50),
         focusedScale = 1.04f,
         borderWidth = 0.dp,
         glow = false,
-        modifier = Modifier.height(36.dp),
+        modifier = Modifier.height(36.dp).onFocusChanged { hasFocus = it.hasFocus },
     ) { focused ->
         Column(
             Modifier

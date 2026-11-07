@@ -11,7 +11,8 @@ class NovaApp : Application(), ImageLoaderFactory {
     override fun newImageLoader(): ImageLoader =
         ImageLoader.Builder(this)
             .okHttpClient { Http.client }
-            .crossfade(150)
+            .crossfade(120)
+            .allowRgb565(true)
             .respectCacheHeaders(false)
             .memoryCache { MemoryCache.Builder(this).maxSizePercent(0.25).build() }
             .diskCache {

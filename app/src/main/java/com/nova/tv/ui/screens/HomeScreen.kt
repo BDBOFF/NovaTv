@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -109,10 +110,18 @@ fun longPressFav(vm: AppViewModel, context: android.content.Context, t: Tile) {
 @Composable
 fun BrowseScreen(vm: AppViewModel, scope: Scope) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val rails = remember(
+    // Calcul en arrière-plan ; la version déjà prête s'affiche tout de suite (onglets instantanés)
+    val railsOrNull by produceState<List<com.nova.tv.ui.Rail>?>(
+        vm.railsCache[scope],
         scope, vm.movies, vm.series, vm.channels, vm.storage.favorites, vm.storage.history,
         vm.trendMovies, vm.trendSeries, vm.nowPlaying, vm.storage.showAdult, vm.exploreVersion,
-    ) { vm.buildRails(scope) }
+    ) { value = vm.railsFor(scope) }
+    val rails = railsOrNull ?: run {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            androidx.compose.material3.CircularProgressIndicator(color = Nova.Accent, strokeWidth = 3.dp, modifier = Modifier.size(34.dp))
+        }
+        return
+    }
 
     if (com.nova.tv.ui.LocalDevice.current.compact) {
         MobileBrowse(vm, scope, rails)
