@@ -34,6 +34,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -226,7 +230,7 @@ fun ProfilesScreen(vm: AppViewModel) {
 @Composable
 private fun DialogFrame(onDismiss: () -> Unit, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     Box(
-        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.72f)),
+        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.72f)).trapFocus(),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -539,7 +543,7 @@ fun BusyDialog(vm: AppViewModel) {
         delay(100); runCatching { play.requestFocus() }
     }
     BackHandler { vm.busyWarning = null }
-    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.75f)), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.75f)).trapFocus(), contentAlignment = Alignment.Center) {
         Column(
             Modifier
                 .padding(20.dp)
@@ -576,7 +580,7 @@ fun ResumeDialog(vm: AppViewModel) {
         delay(100); runCatching { resume.requestFocus() }
     }
     BackHandler { vm.resumeAsk = null }
-    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.75f)), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.75f)).trapFocus(), contentAlignment = Alignment.Center) {
         Column(
             Modifier
                 .padding(20.dp)
@@ -615,3 +619,14 @@ fun ResumeDialog(vm: AppViewModel) {
         }
     }
 }
+
+/**
+ * Fenêtre "modale" : la sélection ne peut pas sortir de la boîte de dialogue,
+ * les flèches ne font plus bouger l'écran qui est derrière.
+ */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+fun Modifier.trapFocus(): Modifier = this
+    .focusProperties { exit = { FocusRequester.Cancel } }
+    .focusGroup()
+    // les clics et le tactile ne traversent pas non plus vers l'arrière-plan
+    .pointerInput(Unit) { detectTapGestures { } }
