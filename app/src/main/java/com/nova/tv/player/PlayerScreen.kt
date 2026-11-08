@@ -759,6 +759,7 @@ private fun SeekBar(
     onFocus: () -> Unit,
     requester: FocusRequester,
     onSeekTo: (Float) -> Unit,
+    onToggle: () -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -786,6 +787,10 @@ private fun SeekBar(
                         }
                         Key.DirectionRight -> {
                             onSeek(step); true
+                        }
+                        // OK sur la barre : pause / lecture (le même bouton dans les deux sens)
+                        Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
+                            if (repeat == 0) onToggle(); true
                         }
                         else -> false
                     }
@@ -862,7 +867,7 @@ private fun VodOverlay(
                 val endAt = now + (duration - position)
                 Text("Fin à ${formatClock(endAt)}", style = Type.Small, color = Nova.Muted, modifier = Modifier.padding(start = 76.dp, bottom = 4.dp))
             }
-            SeekBar(position, duration, onSeek, onFocusAny, mainControl, onSeekTo)
+            SeekBar(position, duration, onSeek, onFocusAny, mainControl, onSeekTo, onToggle)
             Spacer(Modifier.height(18.dp))
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 ControlButton("", onToggle, onFocusAny) { c -> if (isPlaying) PauseGlyph(c, 14.dp) else PlayGlyph(c, 14.dp) }
