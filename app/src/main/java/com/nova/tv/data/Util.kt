@@ -123,9 +123,20 @@ object Titles {
     fun year(raw: String?): String? = raw?.let { yearAny.findAll(it).lastOrNull()?.value }
 
     fun normalize(s: String): String {
-        val n = Normalizer.normalize(s.lowercase(), Normalizer.Form.NFD)
-            .replace(Regex("\\p{Mn}+"), "")
-        return n.replace(Regex("[^a-z0-9]"), "")
+        // Version rapide sans regex : appelée des dizaines de milliers de fois au démarrage
+        val sb = StringBuilder(s.length)
+        for (ch in s) {
+            when {
+                ch in 'a'..'z' || ch in '0'..'9' -> sb.append(ch)
+                ch in 'A'..'Z' -> sb.append(ch + 32)
+                ch.code < 128 -> Unit
+                else -> {
+                    val d = Normalizer.normalize(ch.toString(), Normalizer.Form.NFD).lowercase()
+                    for (c in d) if (c in 'a'..'z' || c in '0'..'9') sb.append(c)
+                }
+            }
+        }
+        return sb.toString()
     }
 
     /** Sépare un nom de chaîne "FR| CANAL+ SPORT FHD" en ("CANAL+ SPORT", "FHD"). */

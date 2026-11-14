@@ -126,7 +126,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     init {
         Http.userAgent = storage.userAgent
         viewModelScope.launch {
-            delay(500)
+            delay(150)
             val acc = account
             when {
                 acc == null && storage.accounts.isEmpty() -> replaceAll(Route.Login)
@@ -330,44 +330,41 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         error = null
         loadingText = "Connexion au serveur…"
         try {
+            val app = getApplication<Application>()
             val c: com.nova.tv.data.Source =
-                if (acc.type == "m3u") com.nova.tv.data.M3uClient(acc, getApplication<Application>().cacheDir)
-                else XtreamClient(acc, getApplication<Application>().cacheDir)
+                if (acc.type == "m3u") com.nova.tv.data.M3uClient(acc, app.cacheDir)
+                else XtreamClient(acc, app.cacheDir)
             if (force) c.clearCache()
+            val snap = if (acc.type != "m3u") com.nova.tv.data.CatalogSnapshot(app.cacheDir, acc) else null
+            if (force) snap?.delete()
+
+            // Démarrage rapide : catalogue déjà connu -> accueil immédiat, mise à jour en arrière-plan
+            val saved = if (snap != null && !force) withContext(Dispatchers.IO) { snap.read() } else null
+            if (saved != null && (saved.movies.isNotEmpty() || saved.series.isNotEmpty() || saved.channels.isNotEmpty())) {
+                loadingText = "Préparation de l'interface…"
+                client = c
+                info = null
+                storage.upsertAccount(acc)
+                storage.setActive(acc.id)
+                applyCatalog(saved)
+                buildIndexes()
+                enterMain(acc)
+                viewModelScope.launch { backgroundRefresh(c, snap, saved) }
+                return null
+            }
+
             val inf = c.login()
             storage.upsertAccount(acc)
             storage.setActive(acc.id)
             client = c
             info = inf
             loadingText = "Chargement des chaînes, films et séries…"
-            coroutineScope {
-                val lc = async { runCatching { c.liveCategories(force) }.getOrDefault(emptyList()) }
-                val ls = async { runCatching { c.liveStreams(force) }.getOrDefault(emptyList()) }
-                val mc = async { runCatching { c.vodCategories(force) }.getOrDefault(emptyList()) }
-                val ms = async { runCatching { c.vodStreams(force) }.getOrDefault(emptyList()) }
-                val sc = async { runCatching { c.seriesCategories(force) }.getOrDefault(emptyList()) }
-                val ss = async { runCatching { c.series(force) }.getOrDefault(emptyList()) }
-                liveCategories = lc.await()
-                channels = ls.await()
-                movieCategories = mc.await()
-                movies = ms.await()
-                seriesCategories = sc.await()
-                series = ss.await()
-            }
+            val d = loadCatalog(c, force)
+            applyCatalog(d)
             loadingText = "Préparation de l'interface…"
             buildIndexes()
-            epg.clear(); epgTime.clear(); epgFull.clear()
-            details.clear(); contents.clear()
-            trendMovies = emptyList(); trendSeries = emptyList(); nowPlaying = emptyList()
-            focus.last.clear(); focus.pending.clear()
-            initialFocusDone = false
-            selection.clear()
-            tab = MainTab.HOME
-            replaceAll(Route.Main)
-            viewModelScope.launch { loadTrending() }
-            checkUpdate()
-            sync.attach(acc)
-            viewModelScope.launch { license.revalidateIfNeeded() }
+            enterMain(acc)
+            if (snap != null) viewModelScope.launch(Dispatchers.IO) { snap.write(d) }
             return null
         } catch (e: Exception) {
             val msg = when {
@@ -381,6 +378,74 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         } finally {
             loading = false
         }
+    }
+
+    private suspend fun loadCatalog(c: com.nova.tv.data.Source, force: Boolean): com.nova.tv.data.CatalogSnapshot.Data =
+        coroutineScope {
+            val lc = async { runCatching { c.liveCategories(force) }.getOrDefault(emptyList()) }
+            val ls = async { runCatching { c.liveStreams(force) }.getOrDefault(emptyList()) }
+            val mc = async { runCatching { c.vodCategories(force) }.getOrDefault(emptyList()) }
+            val ms = async { runCatching { c.vodStreams(force) }.getOrDefault(emptyList()) }
+            val sc = async { runCatching { c.seriesCategories(force) }.getOrDefault(emptyList()) }
+            val ss = async { runCatching { c.series(force) }.getOrDefault(emptyList()) }
+            com.nova.tv.data.CatalogSnapshot.Data(
+                System.currentTimeMillis(), lc.await(), mc.await(), sc.await(), ls.await(), ms.await(), ss.await(),
+            )
+        }
+
+    private fun applyCatalog(d: com.nova.tv.data.CatalogSnapshot.Data) {
+        liveCategories = d.liveCategories
+        channels = d.channels
+        movieCategories = d.vodCategories
+        movies = d.movies
+        seriesCategories = d.seriesCategories
+        series = d.series
+    }
+
+    private fun enterMain(acc: Account) {
+        epg.clear(); epgTime.clear(); epgFull.clear()
+        details.clear(); contents.clear()
+        trendMovies = emptyList(); trendSeries = emptyList(); nowPlaying = emptyList()
+        focus.last.clear(); focus.pending.clear()
+        initialFocusDone = false
+        selection.clear()
+        tab = MainTab.HOME
+        replaceAll(Route.Main)
+        viewModelScope.launch { loadTrending() }
+        checkUpdate()
+        sync.attach(acc)
+        viewModelScope.launch { license.revalidateIfNeeded() }
+    }
+
+    /** Après un démarrage rapide : vérifie le compte et rafraîchit le catalogue s'il date. */
+    private suspend fun backgroundRefresh(
+        c: com.nova.tv.data.Source,
+        snap: com.nova.tv.data.CatalogSnapshot,
+        saved: com.nova.tv.data.CatalogSnapshot.Data,
+    ) {
+        try {
+            val inf = c.login()
+            if (client !== c) return
+            info = inf
+        } catch (e: Exception) {
+            // hors ligne ou serveur lent : on garde le catalogue connu
+            return
+        }
+        if (System.currentTimeMillis() - saved.savedAt < XtreamClient.CATALOG_TTL) return
+        val d = try { loadCatalog(c, false) } catch (e: Exception) { return }
+        if (client !== c) return
+        if (d.movies.isEmpty() && d.series.isEmpty() && d.channels.isEmpty()) return
+        fun print(x: com.nova.tv.data.CatalogSnapshot.Data): List<Long> = listOf(
+            x.movies.size.toLong(), x.series.size.toLong(), x.channels.size.toLong(),
+            x.movies.sumOf { it.id.toLong() }, x.series.sumOf { it.id.toLong() + it.lastModified }, x.channels.sumOf { it.id.toLong() },
+            (x.liveCategories.size + x.vodCategories.size + x.seriesCategories.size).toLong(),
+        )
+        val changed = withContext(Dispatchers.Default) { print(d) != print(saved) }
+        if (changed) {
+            applyCatalog(d)
+            buildIndexes()
+        }
+        withContext(Dispatchers.IO) { snap.write(d) }
     }
 
     private suspend fun buildIndexes() = withContext(Dispatchers.Default) {
