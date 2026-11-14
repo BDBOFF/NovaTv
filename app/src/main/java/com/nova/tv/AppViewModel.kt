@@ -340,7 +340,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
             // Démarrage rapide : catalogue déjà connu -> accueil immédiat, mise à jour en arrière-plan
             val saved = if (snap != null && !force) withContext(Dispatchers.IO) { snap.read() } else null
-            if (saved != null && (saved.movies.isNotEmpty() || saved.series.isNotEmpty() || saved.channels.isNotEmpty())) {
+            if (snap != null && saved != null && (saved.movies.isNotEmpty() || saved.series.isNotEmpty() || saved.channels.isNotEmpty())) {
                 loadingText = "Préparation de l'interface…"
                 client = c
                 info = null
