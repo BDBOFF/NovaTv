@@ -692,7 +692,7 @@ private fun selectTrack(player: Player, type: Int, opt: TrackOption) {
 // ============================================================================== Interfaces
 
 @Composable
-private fun TopInfo(title: String, subtitle: String?, now: Long, badge: String? = null) {
+private fun TopInfo(title: String, subtitle: String?, now: Long, badge: String? = null, plot: String? = null) {
     Box(
         Modifier
             .fillMaxWidth()
@@ -713,6 +713,10 @@ private fun TopInfo(title: String, subtitle: String?, now: Long, badge: String? 
                 badge?.let { Spacer(Modifier.width(10.dp)); Badge(it) }
             }
             subtitle?.takeIf { it.isNotBlank() }?.let { Text(it, style = Type.H3, color = Nova.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            plot?.takeIf { it.isNotBlank() }?.let {
+                Spacer(Modifier.height(6.dp))
+                Text(it, style = Type.Body, color = Nova.Text.copy(alpha = 0.8f), maxLines = 3, overflow = TextOverflow.Ellipsis)
+            }
         }
         Text(formatClock(now), style = Type.H2, modifier = Modifier.align(Alignment.TopEnd))
     }
@@ -855,7 +859,7 @@ private fun VodOverlay(
 ) {
     val onRestart = { onSeekTo(0f) }
     Box(Modifier.fillMaxSize()) {
-        TopInfo(item.title, item.subtitle, now)
+        TopInfo(item.title, item.subtitle, now, plot = item.plot)
         Column(
             Modifier
                 .align(Alignment.BottomCenter)

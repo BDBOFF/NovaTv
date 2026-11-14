@@ -106,7 +106,12 @@ data class Details(
     val director: String?,
     val cast: List<CastMember>,
     val trailer: String?,
+    /** Identifiant TMDB (sert à récupérer les résumés d'épisodes). */
+    val tmdbId: Int? = null,
 )
+
+/** Infos d'un épisode venant de TMDB (résumé en français, image, durée). */
+data class EpisodeMeta(val name: String?, val overview: String?, val still: String?, val runtimeMin: Int?, val airDate: String?)
 
 data class Episode(
     val id: Int,
@@ -170,6 +175,8 @@ data class PlayItem(
     val ext: String = "",
     val channel: Channel? = null,
     val catchup: EpgProgram? = null,
+    /** Résumé affiché dans le lecteur (épisodes). */
+    val plot: String? = null,
 )
 
 data class PlaySession(

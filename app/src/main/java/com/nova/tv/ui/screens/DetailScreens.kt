@@ -347,6 +347,9 @@ fun SeriesDetailScreen(vm: AppViewModel, id: Int) {
         if (c != null && season == -1) season = target?.season ?: c.seasons.firstOrNull() ?: 1
     }
     val episodes = c?.episodes?.get(season).orEmpty()
+    val meta by produceState(vm.cachedEpisodeMeta(id, season) ?: emptyMap(), id, season) {
+        if (season >= 0 && value.isEmpty()) value = vm.episodeMeta(series, season)
+    }
 
     CompositionLocalProvider(LocalScreenKey provides screen) {
         RequestInitialFocus(screen, playRequester)
@@ -421,20 +424,33 @@ fun SeriesDetailScreen(vm: AppViewModel, id: Int) {
                             items(episodes, key = { it.id }) { ep ->
                                 val h = vm.resumeOf(Kind.EPISODE, ep.id)
                                 EpisodeCard(
-                                    ep, h?.progress, series.cover,
+                                    ep, h?.progress, series.cover, meta[ep.number],
                                     onClick = { vm.playEpisode(series, c, ep) },
                                     onFocused = { focusedEp = ep },
                                 )
                             }
                         }
                     }
+                    // ---------------------------------------------- Résumé de l'épisode sélectionné
                     val fe = focusedEp?.takeIf { it.season == season }
-                    Column(Modifier.padding(horizontal = Gutter).height(58.dp)) {
+                        ?: target?.takeIf { it.season == season } ?: episodes.firstOrNull()
+                    Column(Modifier.padding(horizontal = Gutter).heightIn(min = 96.dp)) {
                         if (fe != null) {
-                            Text("É${fe.number} · ${fe.title}", style = Type.H3, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            fe.plot?.let {
-                                Text(it, style = Type.Small, color = Nova.Muted, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 640.dp))
-                            }
+                            val m = meta[fe.number]
+                            val title = m?.name?.takeIf { fe.title.startsWith("Épisode") || fe.title.isBlank() } ?: fe.title
+                            Text("Épisode ${fe.number} · $title", style = Type.H2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            val info = listOfNotNull(
+                                formatRuntime(m?.runtimeMin ?: fe.durationSec?.div(60)),
+                                m?.airDate?.let { d -> runCatching { java.text.SimpleDateFormat("d MMMM yyyy", java.util.Locale.FRANCE).format(java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).parse(d)!!) }.getOrNull() },
+                            ).joinToString("  ·  ")
+                            if (info.isNotBlank()) Text(info, style = Type.Small, color = Nova.Dim)
+                            Spacer(Modifier.height(4.dp))
+                            val plot = m?.overview?.takeIf { it.isNotBlank() } ?: fe.plot
+                            Text(
+                                plot ?: "Pas de résumé disponible pour cet épisode.",
+                                style = Type.Body, color = if (plot != null) Nova.Text.copy(alpha = 0.85f) else Nova.Dim,
+                                maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 760.dp),
+                            )
                         }
                     }
                 }
@@ -447,7 +463,7 @@ fun SeriesDetailScreen(vm: AppViewModel, id: Int) {
 }
 
 @Composable
-private fun EpisodeCard(ep: Episode, progress: Float?, fallback: String?, onClick: () -> Unit, onFocused: () -> Unit) {
+private fun EpisodeCard(ep: Episode, progress: Float?, fallback: String?, meta: com.nova.tv.data.EpisodeMeta?, onClick: () -> Unit, onFocused: () -> Unit) {
     Column(Modifier.width(CardSize.LandW)) {
         FocusBox(
             onClick = onClick,
@@ -455,7 +471,7 @@ private fun EpisodeCard(ep: Episode, progress: Float?, fallback: String?, onClic
             memoryKey = "ep_${ep.id}",
             modifier = Modifier.width(CardSize.LandW).height(CardSize.LandH),
         ) { focused ->
-            NetImage(ep.image ?: fallback, Modifier.fillMaxSize())
+            NetImage(ep.image ?: meta?.still ?: fallback, Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.8f))))
             Box(
                 Modifier.align(Alignment.TopStart).padding(8.dp).clip(RoundedCornerShape(6.dp))
@@ -468,12 +484,23 @@ private fun EpisodeCard(ep: Episode, progress: Float?, fallback: String?, onClic
                 ) { Box(Modifier.padding(start = 3.dp)) { PlayGlyph(Color.White, 13.dp) } }
             }
             Column(Modifier.align(Alignment.BottomStart).padding(10.dp)) {
-                Text(ep.title, style = Type.H3, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                formatRuntime(ep.durationSec?.div(60))?.let { Text(it, style = Type.Small, color = Nova.Muted) }
+                Text(
+                    meta?.name?.takeIf { ep.title.startsWith("Épisode") || ep.title.isBlank() } ?: ep.title,
+                    style = Type.H3, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+                formatRuntime(ep.durationSec?.div(60) ?: meta?.runtimeMin)?.let { Text(it, style = Type.Small, color = Nova.Muted) }
                 if (progress != null && progress > 0.01f) {
                     Spacer(Modifier.height(5.dp))
                     ProgressLine(progress, Modifier.fillMaxWidth())
                 }
+            }
+        }
+        // Sur téléphone (pas de sélection à la télécommande), le résumé s'affiche sous chaque épisode
+        if (com.nova.tv.ui.LocalDevice.current.touch) {
+            val plot = meta?.overview?.takeIf { it.isNotBlank() } ?: ep.plot
+            if (plot != null) {
+                Spacer(Modifier.height(6.dp))
+                Text(plot, style = Type.Small, color = Nova.Muted, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
         }
     }

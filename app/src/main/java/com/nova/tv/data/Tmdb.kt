@@ -104,6 +104,7 @@ class Tmdb(val key: String) {
         val runtime = if (type == "movie") o.i("runtime") else o["episode_run_time"].items().firstOrNull()
             ?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() }
         return Details(
+            tmdbId = o.i("id"),
             title = o.firstOf("title", "name") ?: "",
             logo = logo,
             plot = o.s("overview"),
@@ -147,6 +148,37 @@ class Tmdb(val key: String) {
     suspend fun nowPlaying(): List<TmdbItem> = list("movie", "/movie/now_playing", "region=FR")
 
     suspend fun detailsById(type: String, id: Int): Details? = details(type, id.toString(), "", null)
+
+    private val seasonCache = java.util.concurrent.ConcurrentHashMap<String, Map<Int, EpisodeMeta>>()
+
+    /** Résumés des épisodes d'une saison (en français, avec repli en anglais si vide). */
+    suspend fun season(tvId: Int, season: Int): Map<Int, EpisodeMeta> {
+        seasonCache["$tvId:$season"]?.let { return it }
+        val o = get("/tv/$tvId/season/$season") ?: return emptyMap()
+        var map = o["episodes"].items().mapNotNull { it.obj() }.mapNotNull { e ->
+            val n = e.i("episode_number") ?: return@mapNotNull null
+            n to EpisodeMeta(
+                name = e.s("name"),
+                overview = e.s("overview"),
+                still = e.s("still_path")?.let { "${IMG}w500$it" },
+                runtimeMin = e.i("runtime"),
+                airDate = e.s("air_date"),
+            )
+        }.toMap()
+        // TMDB n'a pas toujours le résumé en français : on complète avec l'anglais
+        if (map.values.any { it.overview.isNullOrBlank() }) {
+            runCatching {
+                val url = if (bearer) "$API/tv/$tvId/season/$season?language=en-US" else "$API/tv/$tvId/season/$season?api_key=$key&language=en-US"
+                val headers = if (bearer) mapOf("Authorization" to "Bearer $key", "accept" to "application/json") else emptyMap()
+                val en = json.parseToJsonElement(Http.get(url, headers)).obj()
+                val enMap = en?.get("episodes").items().mapNotNull { it.obj() }
+                    .associate { (it.i("episode_number") ?: -1) to it.s("overview") }
+                map = map.mapValues { (n, m) -> if (m.overview.isNullOrBlank()) m.copy(overview = enMap[n]) else m }
+            }
+        }
+        seasonCache["$tvId:$season"] = map
+        return map
+    }
 
     /** Recherche une saga (collection TMDB) par son nom. */
     suspend fun searchCollection(name: String): Int? {

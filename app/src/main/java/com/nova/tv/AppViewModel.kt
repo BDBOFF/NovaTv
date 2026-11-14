@@ -657,9 +657,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             director = t?.director ?: meta?.director,
             cast = t?.cast?.takeIf { it.isNotEmpty() } ?: splitCast(meta?.cast),
             trailer = t?.trailer ?: meta?.trailer,
+            tmdbId = t?.tmdbId,
         )
         details["${Kind.SERIES}:${s.id}"] = d
         return d
+    }
+
+    private val episodeMetaCache = java.util.concurrent.ConcurrentHashMap<String, Map<Int, com.nova.tv.data.EpisodeMeta>>()
+
+    fun cachedEpisodeMeta(seriesId: Int, season: Int) = episodeMetaCache["$seriesId:$season"]
+
+    /** Résumés d'épisodes d'une saison (TMDB), pour la fiche série et le lecteur. */
+    suspend fun episodeMeta(s: Series, season: Int): Map<Int, com.nova.tv.data.EpisodeMeta> {
+        episodeMetaCache["${s.id}:$season"]?.let { return it }
+        val t = tmdb() ?: return emptyMap()
+        val tvId = runCatching { seriesDetails(s).tmdbId }.getOrNull() ?: return emptyMap()
+        val map = runCatching { t.season(tvId, season) }.getOrDefault(emptyMap())
+        if (map.isNotEmpty()) episodeMetaCache["${s.id}:$season"] = map
+        return map
     }
 
     /** Fiche légère pour l'aperçu de l'accueil. */
@@ -1233,8 +1248,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val items = all.map { e ->
             PlayItem(
                 kind = Kind.EPISODE, id = e.id, url = c.episodeUrl(e.id, e.ext), title = s.title,
-                subtitle = "S${e.season} · É${e.number} · ${e.title}",
-                image = e.image ?: backdrop ?: s.cover, seriesId = s.id, ext = e.ext,
+                subtitle = "S${e.season} · É${e.number} · ${cachedEpisodeMeta(s.id, e.season)?.get(e.number)?.name?.takeIf { e.title.startsWith("Épisode") } ?: e.title}",
+                image = e.image ?: cachedEpisodeMeta(s.id, e.season)?.get(e.number)?.still ?: backdrop ?: s.cover,
+                seriesId = s.id, ext = e.ext,
+                plot = cachedEpisodeMeta(s.id, e.season)?.get(e.number)?.overview?.takeIf { it.isNotBlank() } ?: e.plot,
             )
         }
         val idx = items.indexOfFirst { it.id == ep.id }.coerceAtLeast(0)
