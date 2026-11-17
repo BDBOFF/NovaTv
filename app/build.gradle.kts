@@ -5,7 +5,10 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
-val tmdbKey: String = (project.findProperty("TMDB_API_KEY") as String?) ?: ""
+// Secrets fournis par GitHub Actions (jamais écrits dans le dépôt)
+fun secret(name: String): String = (project.findProperty(name) as String?) ?: System.getenv(name) ?: ""
+val tmdbKey: String = secret("TMDB_API_KEY")
+val keystorePassword: String = secret("KEYSTORE_PASSWORD")
 // Numéro de version = numéro de compilation GitHub (sert à la mise à jour intégrée)
 val buildNumber: Int = (project.findProperty("BUILD_NUMBER") as String?)?.toIntOrNull() ?: 1
 
@@ -25,9 +28,9 @@ android {
     signingConfigs {
         create("nova") {
             storeFile = file("nova-release.jks")
-            storePassword = "novatv2026"
+            storePassword = keystorePassword
             keyAlias = "nova"
-            keyPassword = "novatv2026"
+            keyPassword = keystorePassword
         }
     }
 

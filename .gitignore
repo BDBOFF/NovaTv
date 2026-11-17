@@ -5,3 +5,7 @@ local.properties
 *.iml
 .DS_Store
 captures/
+
+# Clé de signature : fournie par les secrets GitHub, jamais versionnée
+*.jks
+*.keystore

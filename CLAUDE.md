@@ -80,6 +80,8 @@ Le dossier `site/` contient le **brouillon** du site de vente (Samoth TV + Samot
   Les journaux complets ne sont pas téléchargeables depuis l'environnement de l'assistant : en cas d'échec, il faut relire le code modifié et déduire l'erreur (souvent un import manquant ou un smart cast impossible).
 - Une vérification syntaxique locale est possible avec `kotlinc`, mais sans les bibliothèques Android elle affiche beaucoup de fausses erreurs (« unresolved reference » sur Compose/coroutines) : ne regarder que les erreurs dans les lignes modifiées.
 - Commits signés `BDBOFF`.
+- **Secrets GitHub Actions** (Settings > Secrets and variables > Actions) : `KEYSTORE_BASE64` (fichier de signature encodé en base64), `KEYSTORE_PASSWORD` (mot de passe du fichier et de la clé, alias `nova`), `TMDB_API_KEY`. Le workflow recrée `app/nova-release.jks` à partir du secret et s'arrête avec un message clair s'il en manque un. Ni le `.jks` ni les mots de passe ne doivent revenir dans le dépôt (`*.jks` est dans `.gitignore`). L'assistant ne peut pas lire ni écrire ces secrets (accès bloqué) : c'est le propriétaire qui les saisit.
+- **Ne jamais changer de fichier de signature** sans prévenir : sinon l'appli installée refuse la mise à jour et il faut la désinstaller sur chaque appareil.
 
 ## Décisions prises (et pourquoi)
 
@@ -113,7 +115,7 @@ Le dossier `site/` contient le **brouillon** du site de vente (Samoth TV + Samot
 - **Boutique Lemon Squeezy** : quand le propriétaire l'aura créée, renseigner `STORE_ID` et `BUY_URL` dans `data/License.kt` et les liens d'achat du site.
 - **Organisation GitHub SamothTV** : après le transfert des dépôts, mettre à jour `REPO` dans `data/Updater.kt`, le lien fixe de l'APK, le workflow et l'adresse du site (`samothtv.github.io`). Ancien chemin `BDBOFF/novatv` : GitHub redirige, mais à remplacer.
 - **Site** : prix de Samoth HOME à confirmer (marqué « Gratuit » pour l'instant), page de confidentialité qui mentionne Firebase. **Ne rien publier sans accord.**
-- **Sécurité du dépôt public** : le keystore de signature et son mot de passe, ainsi que la clé TMDB, sont actuellement versionnés dans le dépôt. Proposer au propriétaire de les passer en **secrets GitHub Actions** (et éventuellement de rendre le dépôt privé, en gardant les releases publiques ailleurs). Attention : changer de keystore oblige à désinstaller/réinstaller l'appli sur tous les appareils.
+- **Sécurité du dépôt public** : passage aux secrets GitHub préparé sur la branche `secrets-github` (fichier de signature retiré du dépôt, clé TMDB et mot de passe retirés du code). À fusionner dans `main` **une fois que le propriétaire a créé les 3 secrets**, sinon la fabrication échoue. Les anciennes versions restent lisibles dans l'historique Git : pour une vraie protection, il faudrait plus tard une nouvelle clé TMDB (site TMDB) et éventuellement un nouveau fichier de signature (réinstallation sur tous les appareils), à proposer avant le début des ventes.
 - **Démarrage rapide pour M3U** (copie binaire non utilisée car `M3uClient` garde ses URL en interne).
 - **Android Auto** : vidéo à l'arrêt officielle quand l'API Google sera disponible.
 - Mettre à jour les actions GitHub (`setup-java@v5`, Node 24) avant qu'elles ne cassent.
