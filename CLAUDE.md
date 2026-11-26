@@ -83,6 +83,17 @@ Le dossier `site/` contient le **brouillon** du site de vente (Samoth TV + Samot
 - **Secrets GitHub Actions** (Settings > Secrets and variables > Actions) : `KEYSTORE_BASE64` (fichier de signature encodé en base64), `KEYSTORE_PASSWORD` (mot de passe du fichier et de la clé, alias `nova`), `TMDB_API_KEY`. Le workflow recrée `app/nova-release.jks` à partir du secret et s'arrête avec un message clair s'il en manque un. Ni le `.jks` ni les mots de passe ne doivent revenir dans le dépôt (`*.jks` est dans `.gitignore`). L'assistant ne peut pas lire ni écrire ces secrets (accès bloqué) : c'est le propriétaire qui les saisit.
 - **Ne jamais changer de fichier de signature** sans prévenir : sinon l'appli installée refuse la mise à jour et il faut la désinstaller sur chaque appareil.
 
+## Automatisations Claude Code (dossier `.claude/`)
+
+Mises en place le 26/11/2026, elles s'appliquent à chaque session sur ce dépôt :
+
+- **Hook `guard_secrets.py`** (avant chaque écriture, commit ou push) : bloque mots de passe, clés TMDB, jetons, codes `SAMOTH-…`, fichiers `.jks`/`.keystore` non ignorés, adresse e-mail perso. Les secrets connus sont reconnus par leur empreinte SHA-256 (jamais en clair). Ne jamais le contourner : retirer la valeur.
+- **Hook `check_kotlin.py`** (après chaque modification d'un `.kt`) : signale les API trop récentes pour minSdk 21 et les imports `getValue`/`setValue` manquants. `// minsdk-ok` en fin de ligne pour un faux positif.
+- **Skill `/publier`** : relecture → commit → push → surveillance de la fabrication → correction si échec → vérification de la release → mise à jour de CLAUDE.md → message au propriétaire. C'est la règle permanente ; l'utiliser à la fin de chaque modification.
+- **Skill `regles-tv`** (automatique, invisible pour le propriétaire) : conventions d'interface (FocusBox, trapFocus, LongPressGuard, LocalDevice/LocalGutter, thème Nova, fluidité).
+- **Subagent `relecteur`** : joue le compilateur avant chaque push (imports, smart casts, signatures, minSdk, secrets).
+- **MCP `context7`** (`.mcp.json`) : documentation à jour de Media3, Compose, Coil, OkHttp. Graphify reste l'outil pour explorer le code du projet.
+
 ## Décisions prises (et pourquoi)
 
 - **Un seul APK** TV + téléphone + tablette, qui s'adapte à l'écran : plus simple à distribuer et à maintenir.
