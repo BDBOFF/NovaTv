@@ -72,13 +72,11 @@ Le dossier `site/` contient le **brouillon** du site de vente (Samoth TV + Samot
 ## Fabriquer et publier l'APK
 
 - **On ne compile pas en local** (l'environnement de l'assistant n'accède pas au dépôt Maven de Google). Tout passe par **GitHub Actions** (`.github/workflows/build.yml`).
-- Chaque push sur `main` lance la fabrication. Le numéro de version = numéro d'exécution GitHub (`-PBUILD_NUMBER`), `versionName` = `1.<numéro>`.
-- Si ça réussit, une release `build-N` est créée avec `NovaTV.apk`. Lien fixe toujours valable : `https://github.com/BDBOFF/novatv/releases/latest/download/NovaTV.apk`. L'appli installée se met à jour toute seule via ce mécanisme.
-- Suivre une fabrication :
-  ```bash
-  gh api repos/BDBOFF/NovaTv/actions/runs --jq '.workflow_runs[0] | "\(.head_sha[0:7]) \(.status) \(.conclusion) \(.id)"'
-  ```
-  Les journaux complets ne sont pas téléchargeables depuis l'environnement de l'assistant : en cas d'échec, il faut relire le code modifié et déduire l'erreur (souvent un import manquant ou un smart cast impossible).
+- Chaque push lance la fabrication, **sur n'importe quelle branche** ; seule `main` publie une version. Une branche de test peut donc échouer sans conséquence (cas de `secrets-github`, qui échouait tant que les secrets manquaient). Le numéro de version = numéro d'exécution GitHub (`-PBUILD_NUMBER`), `versionName` = `1.<numéro>`.
+- Si ça réussit, une release `build-N` est créée avec `NovaTV.apk`. Lien fixe toujours valable : `https://github.com/BDBOFF/NovaTv/releases/latest/download/NovaTV.apk`. L'appli installée se met à jour toute seule via ce mécanisme.
+- **Suivre une fabrication et diagnostiquer un échec** : suivre la skill `/publier` (`.claude/skills/publier/SKILL.md`), qui contient les commandes exactes (filtre sur `main`, étapes en échec, annotations). Les journaux complets ne sont pas lisibles : on déduit l'erreur du résumé et du code modifié.
+- **Accès GitHub limités pour l'assistant** : l'API REST via `gh api` fonctionne (fabrications, étapes, annotations, releases), mais `gh release download`, GraphQL et les pages Secrets/Variables sont bloqués. Impossible donc de télécharger l'APK publié ou de lire/créer un secret : demander au propriétaire. Le message « This repository moved » au push est sans conséquence (casse `novatv`/`NovaTv`).
+- **Aucun test automatique** dans le projet : la vérification se fait par la fabrication GitHub, le hook `check_kotlin.py`, le subagent `relecteur`, puis l'essai du propriétaire sur ses appareils.
 - Une vérification syntaxique locale est possible avec `kotlinc`, mais sans les bibliothèques Android elle affiche beaucoup de fausses erreurs (« unresolved reference » sur Compose/coroutines) : ne regarder que les erreurs dans les lignes modifiées.
 - Commits signés `BDBOFF`.
 - **Secrets GitHub Actions** (Settings > Secrets and variables > Actions) : `KEYSTORE_BASE64` (fichier de signature encodé en base64), `KEYSTORE_PASSWORD` (mot de passe du fichier et de la clé, alias `nova`), `TMDB_API_KEY`. Le workflow recrée `app/nova-release.jks` à partir du secret et s'arrête avec un message clair s'il en manque un. Ni le `.jks` ni les mots de passe ne doivent revenir dans le dépôt (`*.jks` est dans `.gitignore`). L'assistant ne peut pas lire ni écrire ces secrets (accès bloqué) : c'est le propriétaire qui les saisit.
@@ -99,7 +97,7 @@ Mises en place le 26/11/2026, elles s'appliquent à chaque session sur ce dépô
 
 - **Un seul APK** TV + téléphone + tablette, qui s'adapte à l'écran : plus simple à distribuer et à maintenir.
 - **Distribution par lien GitHub public** (dépôt public + release) plutôt que Google Drive ou X-plore : lien fixe, mise à jour intégrée.
-- **Clé TMDB intégrée au code**, invisible dans les réglages : demande explicite du propriétaire (« elle doit apparaître nulle part »). Elle est injectée au build via `BuildConfig`.
+- **Clé TMDB intégrée au code**, invisible dans les réglages : demande explicite du propriétaire (« elle doit apparaître nulle part »). Elle vient du secret GitHub `TMDB_API_KEY`, injectée au build dans `BuildConfig.TMDB_API_KEY` (`Storage.tmdbKey` ne lit que celle-ci).
 - **Vente sur son propre site via Lemon Squeezy** (pas le Play Store pour l'instant). Prix : 2,99 € / 1 mois, 6,99 € / 3 mois, 11,99 € / 6 mois, 19,99 € / 1 an (mis en avant), 34,99 € à vie ; essai 3 jours ; une licence = 2 appareils. Les clés sont vérifiées directement auprès de Lemon Squeezy, sans serveur à nous ; tolérance hors ligne de 14 jours.
 - **Synchro sans compte** : l'identifiant cloud est une empreinte SHA-256 des identifiants IPTV, donc tous les appareils du même abonnement partagent automatiquement reprise et favoris.
 - **1 profil = 1 abonnement** et garde « un seul flux » : la plupart des abonnements n'autorisent qu'une connexion simultanée.
@@ -109,6 +107,7 @@ Mises en place le 26/11/2026, elles s'appliquent à chaque session sur ce dépô
 
 ## Bugs déjà corrigés — pièges à éviter
 
+- **README.md public** : il contenait encore le mot de passe de signature en clair (supprimé le 26/11/2026). Tout fichier visible du dépôt doit rester sans secret ; le hook `guard_secrets.py` le vérifie désormais.
 - **minSdk 21** : ne pas utiliser d'API Java 8 qui demandent l'API 24 (`Map.merge`, `putIfAbsent`, `ConcurrentHashMap.newKeySet`, `java.time`…). Utiliser des équivalents simples.
 - `by mutableLongStateOf` / `mutableStateOf` hors composable : penser aux imports `getValue` / `setValue`, sinon la fabrication échoue.
 - `buildMap` : préciser les types (`buildMap<String, String>`), l'inférence échoue.
@@ -127,7 +126,7 @@ Mises en place le 26/11/2026, elles s'appliquent à chaque session sur ce dépô
 - **Boutique Lemon Squeezy** : quand le propriétaire l'aura créée, renseigner `STORE_ID` et `BUY_URL` dans `data/License.kt` et les liens d'achat du site.
 - **Organisation GitHub SamothTV** : après le transfert des dépôts, mettre à jour `REPO` dans `data/Updater.kt`, le lien fixe de l'APK, le workflow et l'adresse du site (`samothtv.github.io`). Ancien chemin `BDBOFF/novatv` : GitHub redirige, mais à remplacer.
 - **Site** : prix de Samoth HOME à confirmer (marqué « Gratuit » pour l'instant), page de confidentialité qui mentionne Firebase. **Ne rien publier sans accord.**
-- **Sécurité du dépôt public** : fait le 17/11/2026 — fichier de signature, mot de passe et clé TMDB retirés du dépôt et fournis par les secrets GitHub (piège rencontré : le propriétaire les avait d'abord créés dans un autre dépôt). Reste à prévoir avant les ventes : les anciennes versions restent lisibles dans l'historique Git, donc créer une nouvelle clé TMDB (site TMDB, puis mettre à jour le secret `TMDB_API_KEY`) et éventuellement un nouveau fichier de signature (réinstallation sur tous les appareils).
+- **Avant les ventes** : l'ancienne clé TMDB et l'ancien mot de passe de signature restent lisibles dans l'historique Git. Créer une nouvelle clé TMDB (site TMDB, puis remplacer le secret `TMDB_API_KEY`) et, éventuellement, un nouveau fichier de signature (oblige à réinstaller l'appli sur chaque appareil). Les secrets doivent être créés dans **BDBOFF/NovaTv** (piège déjà rencontré : créés dans un autre dépôt).
 - **Démarrage rapide pour M3U** (copie binaire non utilisée car `M3uClient` garde ses URL en interne).
 - **Android Auto** : vidéo à l'arrêt officielle quand l'API Google sera disponible.
 - Mettre à jour les actions GitHub (`setup-java@v5`, Node 24) avant qu'elles ne cassent.
