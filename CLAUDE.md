@@ -9,6 +9,7 @@ Ce fichier sert à reprendre le projet sans rien redemander. **Lis-le en entier 
 1. `git add -A`, commit, puis **push sur `main`**.
 2. **Surveiller la fabrication GitHub Actions jusqu'au bout** (succès ou échec). En cas d'échec, corriger et recommencer jusqu'au vert.
 3. **Mettre à jour ce fichier CLAUDE.md** (nouvelles décisions, bugs corrigés, pièges, ce qui reste à faire), puis commit + push.
+4. **À la fin de chaque session où du code a changé, proposer les mises à jour de ce fichier** : une courte liste, en français simple, de ce qu'il faudrait ajouter, corriger ou retirer ici, pour que le propriétaire valide.
 
 ## Le propriétaire et ses préférences
 
